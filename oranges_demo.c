@@ -1,9 +1,17 @@
 // sc LINK oranges_demo.c CPU=68060 MATH=68882 DATA=far CODE=far IDIR=libinclude: sage:lib/sage.lib NOICONS
 
+/*
+ TODO
+ 
+ . independent rotation of balls
+ 
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 #include <dos/dos.h>
 #include <clib/dos_protos.h>
 
@@ -28,19 +36,19 @@
 
 // atlas layer 
 #define	ATLAS_LAYER								1
-#define ATLAS_FILENAME						"assets_demo/atlas.png"
+#define ATLAS_FILENAME						"assets/atlas.png"
 #define ATLAS_WIDTH								320
 #define ATLAS_HEIGHT   						384
 
 // oranges ascii logo layer 
 #define	ORANGES_LAYER							2
-#define ORANGES_LOGO_FILENAME			"assets_demo/oranges_ascii_logo.png"
+#define ORANGES_LOGO_FILENAME			"assets/oranges_ascii_logo.png"
 #define ORANGES_WIDTH							SCREEN_WIDTH
 #define ORANGES_HEIGHT   					SCREEN_HEIGHT
 
 // grid layer 
 #define	GRID_CHESS_LAYER					3
-#define GRID_CHESS_FILENAME				"assets_demo/grid_chess.png"
+#define GRID_CHESS_FILENAME				"assets/grid_chess.png"
 #define GRID_CHESS_WIDTH					640
 #define GRID_CHESS_HEIGHT   			118
 
@@ -77,7 +85,7 @@
 
 // FONT
 
-#define FONT_FILENAME					"assets_demo/font_16x20.png"
+#define FONT_FILENAME					"assets/font_16x20.png"
 #define FONT_WIDTH            16
 #define FONT_HEIGHT           20
 #define FONT_NUM              60
@@ -94,7 +102,11 @@
 
 // TEXT MESSAGE
 
-#define MESSAGE_FILENAME			"assets_demo/message.txt"
+#define MESSAGE_FILENAME			"assets/message.txt"
+
+// ENUMS
+
+enum direction { towardLeft, towardRight, towardUp, towardDown };
 
 // GLOBAL VARIABLES
 
@@ -105,8 +117,7 @@ STRPTR message = NULL;
 UWORD message_pos = 0, font_posx[FONT_NUM], font_posy[FONT_NUM], char_posx = SCREEN_WIDTH, char_load = 0;
 UWORD layer_posx = SCREEN_WIDTH+FONT_WIDTH, layer_posy = 0, scroll_posy = 0;
 
-
-// MAIN 
+// 
 
 BOOL createMainLayer(void) {
 	if (SAGE_CreateLayer(MAIN_LAYER, MAIN_LAYER_WIDTH, MAIN_LAYER_HEIGHT)) {  
@@ -130,7 +141,7 @@ BOOL loadOrangesLogo(void) {
   	SAGE_DisplayError();
   	return FALSE;
   }
-    
+  
   if (SAGE_CreateLayerFromPicture(ORANGES_LAYER, oranges_logo_picture)) { 
   	return TRUE;
  	}
@@ -326,45 +337,92 @@ void atlasBlitGridChess(void) {
 	 	MAIN_LAYER,
 	 	0,
 	 	288);
-	 	
 	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
 }
 
+// GENERIC HELPERS
+
+
+
 // 3D
+
+struct Library *MaggieBase = NULL;
 
 char *filename_object;
 char *filename_texture;
 
-int startface;
-int values;
-int maxVerts = 0;
-int totalVerts = 0;
-int totalFaces = 0;
+int totalVertexBufferCount = 0;
+int totalTrianglesCount = 0;
 
-struct Library *MaggieBase = NULL;
-
-vec3 allVertexes[50000];
-vec3 allNormals[50000];
-vec3 allUV[50000];
-
-static struct MaggieVertex BallVertices[2880];
-UWORD BallIndices[3840];
+static struct MaggieVertex BallVertices[10000];
+UWORD BallIndices[10000];
 
 UWORD txtr = 0xffff;
 mat4 worldMatrix, viewMatrix, perspective;
 
 // note: using 640x512 we need to use 4:3 ratio
-// otherwise for wider resolution we use 16:9 ratio
-float targetRatio = 3.0f / 4.0f; //9.0f / 16.0f;
+// otherwise for wider resolution we use 16:9 ratio as  9.0f / 16.0f;
+float targetRatio = 3.0f / 4.0f;
 
 int vBuffer;
 int iBuffer;
-float xangle = 0.0f;
-float yangle = 0.0f;
 vec3 cameraPosition = { 0.0f, 0.0f, 9.0f };
 float cameraStepMovement = 0.05f;
 
-// OBJ Loader helpers
+// set initial balls position XYZ and directions
+#define floorY              2.5f
+#define leftXBoundary       -12.0f
+#define rightXBoundary      12.0f
+
+#define totalBalls          10
+#define ballYPositionsTotal 129
+
+float rotationX = 0.0f, rotationY = 0.0f;
+
+// simulate the bouncing ball via sin table
+float ballYPosition[] = {
+  -0.03695945, -0.1108554, -0.18468332, -0.25839984, -0.33195877, -0.4053169, -0.4784282, -0.55124915,
+  -0.623736, -0.6958436, -0.76752937, -0.8387486, -0.9094586, -0.979617, -1.0491802, -1.118107,
+  -1.1863544, -1.2538815, -1.320648, -1.3866122, -1.4517351, -1.5159762, -1.5792968, -1.6416595,
+  -1.7030246, -1.7633567, -1.8226173, -1.8807718, -1.9377848, -1.9936211, -2.0482473, -2.1016297,
+  -2.153736, -2.2045355, -2.253996, -2.3020883, -2.3487833, -2.3940523, -2.4378672, -2.4802027,
+  -2.5210328, -2.560332, -2.5980763, -2.6342442, -2.6688128, -2.7017603, -2.7330682, -2.762717,
+  -2.790688, -2.816965, -2.8415325, -2.8643742, -2.885477, -2.9048283, -2.922416, -2.9382293,
+  -2.952259, -2.9644966, -2.974934, -2.9835658, -2.990386, -2.995391, -2.998577, -2.9999433,
+  -3.000000, -2.9999433, -2.998577, -2.995391, -2.990386, -2.9835658, -2.974934, -2.9644966,
+  -2.952259, -2.9382293, -2.922416, -2.9048283, -2.885477, -2.8643742, -2.8415325, -2.816965,
+  -2.790688, -2.762717, -2.7330682, -2.7017603, -2.6688128, -2.6342442, -2.5980763, -2.560332,
+  -2.5210328, -2.4802027, -2.4378672, -2.3940523, -2.3487833, -2.3020883, -2.253996, -2.2045355,
+  -2.153736, -2.1016297, -2.0482473, -1.9936211, -1.9377848, -1.8807718, -1.8226173, -1.7633567,
+  -1.7030246, -1.6416595, -1.5792968, -1.5159762, -1.4517351, -1.3866122, -1.320648, -1.2538815,
+  -1.1863544, -1.118107, -1.0491802, -0.979617, -0.9094586, -0.8387486, -0.76752937, -0.6958436,
+  -0.623736, -0.55124915, -0.4784282, -0.4053169, -0.33195877, -0.25839984, -0.18468332, -0.1108554,
+  -0.03695945
+  };
+  
+//int ballYPositionShift[] = { 64, 52, 40, 28, 16 };
+int ballYPositionShift[totalBalls] = { 64, 54, 44, 34, 24, 14, 4, 2, 1, 0 };
+
+vec3 ballRotationDefaults[totalBalls] = {
+  { 0.04, 0.0323, 0.04 },
+  { 0.025, 0.04, 0.0 },
+  { 0.03, 0.023, 0.016 },
+  { 0.024, 0.06, 0.0 },
+  { 0.032, 0.056, 0.08 },
+  { 0.04, 0.0323, 0.04 },
+  { 0.025, 0.04, 0.0 },
+  { 0.03, 0.023, 0.016 },
+  { 0.024, 0.06, 0.0 },
+  { 0.032, 0.056, 0.08 }
+}; 
+vec3 ballRotation[totalBalls]; 
+mat4 ballRotationMatrix[totalBalls];
+
+float ballRandomXStep[totalBalls];
+float ballXPosition[totalBalls];
+enum direction ballDirection[totalBalls];
+
+// OBJ LOADER
 
 static void StripWhites(char *dest, char *src) {
 	int spos = 0;
@@ -376,8 +434,7 @@ static void StripWhites(char *dest, char *src) {
 	strcpy(dest, src + spos);
 
 	dlen = strlen(dest) - 1;
-	while(dest[dlen] && isspace(dest[dlen]))
-	{
+	while(dest[dlen] && isspace(dest[dlen])) {
 		dest[dlen] = 0;
 		dlen--;
 	}
@@ -388,12 +445,12 @@ static void GetBasePath(char *basePath, int maxLen, const char *modelName) {
 
 	strncpy(basePath, modelName, maxLen - 1);
 	pathLen = strlen(basePath);
+	
 	if(pathLen > maxLen)
 		pathLen = maxLen;
-	while(pathLen)
-	{
-		if(basePath[pathLen] == '/')
-		{
+		
+	while(pathLen) {
+		if(basePath[pathLen] == '/') {
 			basePath[pathLen] = 0;
 			printf("basePath : %s\n", basePath);
 			return;
@@ -403,22 +460,21 @@ static void GetBasePath(char *basePath, int maxLen, const char *modelName) {
 	basePath[0] = 0;
 }
 
-vec3 vertex;
-vec3 normals;
-vec3 uv;
-int vertexCount = 0;
-int normalsCount = 0;
-int uvCount = 0;
-int masterCount = 0;
-int indexCount = 0;
-int indexInternalCount = 0;
-int loop = 0;
-
-// OBJ loader
+vec3 allVertexes[10000];
+vec3 allNormals[10000];
+vec3 allUV[10000];
 
 BOOL LoadObjModel(const char *modelName) {
+	vec3 vertex;
+	vec3 normals;
+	vec3 uv;
+	
+	int vertexCount = 0;
+	int normalsCount = 0;
+	int uvCount = 0;
+	int indexInternalCount = 0;
+
 	FILE *objfp;
-	FILE *mtrlfp;
 	char basePath[256];
 
 	objfp = fopen(modelName, "rb");
@@ -429,8 +485,7 @@ BOOL LoadObjModel(const char *modelName) {
 
 	GetBasePath(basePath, sizeof(basePath)-1, modelName);
 
-	while(!feof(objfp))
-	{
+	while(!feof(objfp)) {
 		static char line[2048];
 		static char paramline[2048];
 		memset(line, 0, sizeof(line));
@@ -439,21 +494,21 @@ BOOL LoadObjModel(const char *modelName) {
 		fgets(line, 2048, objfp);
 		
 		// extract and add the vertexes x/y/z
-		if(!strncmp(line, "v ", 2))
-		{
+		if(!strncmp(line, "v ", 2)) {
 			StripWhites(paramline, line + 1);
 			sscanf(paramline, "%f %f %f", &vertex.x, &vertex.y, &vertex.z);
+			
+			vertex.x *= 2.0;
+			vertex.y *= 2.0;
+			vertex.z *= 2.0;
 			
 			allVertexes[vertexCount] = vertex;
 			
 			vertexCount++;
-			// printf("vertexCount= %d\n", vertexCount);
-			// printf("x=%f y=%f z=%f\n", vertex.x, vertex.y, vertex.z);
 		}
 		
 		// extract and add the normals
-		else if(!strncmp(line, "vn ", 3))
-		{
+		else if(!strncmp(line, "vn ", 3)) {
 			StripWhites(paramline, line + 2);
 			sscanf(paramline, "%f %f %f", &normals.x, &normals.y, &normals.z);
 
@@ -463,20 +518,20 @@ BOOL LoadObjModel(const char *modelName) {
 		}
 		
 		// extract and add texture coords x/y/z
-		else if(!strncmp(line, "vt ", 3))
-		{
+		else if(!strncmp(line, "vt ", 3)) {
 			StripWhites(paramline, line + 2);
 			sscanf(paramline, "%f %f", &uv.x, &uv.y);
 			
-			uv.y = uv.y;// * -1.0f;
+			uv.y = uv.y;
 			uv.z = 0.0f;
 			
 			allUV[uvCount] = uv;
 			
 			uvCount++;
 		}
-		else if(!strncmp(line, "f ", 2))
-		{
+
+		// 
+		else if(!strncmp(line, "f ", 2)) {
 			int aV,bV,cV,dV;
 			int aVN,bVN,cVN,dVN;
 			int aVT,bVT,cVT,dVT;
@@ -491,79 +546,79 @@ BOOL LoadObjModel(const char *modelName) {
 	     &dV, &dVT, &dVN);
 	     
 			// get the positions and normals
-			BallVertices[masterCount].pos = allVertexes[aV-1];
-			BallVertices[masterCount].normal = allNormals[aVN-1];		
-			BallVertices[masterCount].colour = 0x00ffffff;
-			BallVertices[masterCount].tex[0].u = allUV[aVT-1].x;
-			BallVertices[masterCount].tex[0].v = allUV[aVT-1].y;
+			BallVertices[totalVertexBufferCount].pos = allVertexes[aV-1];
+			BallVertices[totalVertexBufferCount].normal = allNormals[aVN-1];		
+			BallVertices[totalVertexBufferCount].colour = 0x00ffffff;
+			BallVertices[totalVertexBufferCount].tex[0].u = allUV[aVT-1].x;
+			BallVertices[totalVertexBufferCount].tex[0].v = allUV[aVT-1].y;
 			
-			masterCount++;
+			totalVertexBufferCount++;
 			
-			BallVertices[masterCount].pos = allVertexes[bV-1];
-			BallVertices[masterCount].normal = allNormals[bVN-1];
-			BallVertices[masterCount].colour = 0x00ffffff;
-			BallVertices[masterCount].tex[0].u = allUV[bVT-1].x;
-			BallVertices[masterCount].tex[0].v = allUV[bVT-1].y;
+			BallVertices[totalVertexBufferCount].pos = allVertexes[bV-1];
+			BallVertices[totalVertexBufferCount].normal = allNormals[bVN-1];
+			BallVertices[totalVertexBufferCount].colour = 0x00ffffff;
+			BallVertices[totalVertexBufferCount].tex[0].u = allUV[bVT-1].x;
+			BallVertices[totalVertexBufferCount].tex[0].v = allUV[bVT-1].y;
 							
-			masterCount++;
+			totalVertexBufferCount++;
 			
-			BallVertices[masterCount].pos = allVertexes[cV-1];
-			BallVertices[masterCount].normal = allNormals[cVN-1];
-			BallVertices[masterCount].colour = 0x00ffffff;
-			BallVertices[masterCount].tex[0].u = allUV[cVT-1].x;
-			BallVertices[masterCount].tex[0].v = allUV[cVT-1].y;
+			BallVertices[totalVertexBufferCount].pos = allVertexes[cV-1];
+			BallVertices[totalVertexBufferCount].normal = allNormals[cVN-1];
+			BallVertices[totalVertexBufferCount].colour = 0x00ffffff;
+			BallVertices[totalVertexBufferCount].tex[0].u = allUV[cVT-1].x;
+			BallVertices[totalVertexBufferCount].tex[0].v = allUV[cVT-1].y;
 			
-			masterCount++;
+			totalVertexBufferCount++;
 			
 			if (ret == 9) {
-				BallIndices[indexCount] = indexInternalCount;
-				BallIndices[indexCount+1] = indexInternalCount + 1;
-				BallIndices[indexCount+2] = indexInternalCount + 2;
-				BallIndices[indexCount+3] = 0xffff;
+				BallIndices[totalTrianglesCount] = indexInternalCount;
+				BallIndices[totalTrianglesCount+1] = indexInternalCount + 1;
+				BallIndices[totalTrianglesCount+2] = indexInternalCount + 2;
+				BallIndices[totalTrianglesCount+3] = 0xffff;
 				
 				indexInternalCount = indexInternalCount + 3;
-				indexCount = indexCount + 4;
+				totalTrianglesCount = totalTrianglesCount + 4;
 			}
 			
 			// in case we have a quad, we convert it to a tris: a+b+c and b+c+d
 			if (ret == 12) {
-				BallVertices[masterCount].pos = allVertexes[bV-1];
-				BallVertices[masterCount].normal = allNormals[bVN-1];
-				BallVertices[masterCount].colour = 0x00ffffff;
-				BallVertices[masterCount].tex[0].u = allUV[bVT-1].x;
-				BallVertices[masterCount].tex[0].v = allUV[bVT-1].y;
+				BallVertices[totalVertexBufferCount].pos = allVertexes[bV-1];
+				BallVertices[totalVertexBufferCount].normal = allNormals[bVN-1];
+				BallVertices[totalVertexBufferCount].colour = 0x00ffffff;
+				BallVertices[totalVertexBufferCount].tex[0].u = allUV[bVT-1].x;
+				BallVertices[totalVertexBufferCount].tex[0].v = allUV[bVT-1].y;
 				
-				masterCount++;
+				totalVertexBufferCount++;
 			
-				BallVertices[masterCount].pos = allVertexes[cV-1];
-				BallVertices[masterCount].normal = allNormals[cVN-1];
-				BallVertices[masterCount].colour = 0x00ffffff;
-				BallVertices[masterCount].tex[0].u = allUV[cVT-1].x;
-				BallVertices[masterCount].tex[0].v = allUV[cVT-1].y;
+				BallVertices[totalVertexBufferCount].pos = allVertexes[dV-1];
+				BallVertices[totalVertexBufferCount].normal = allNormals[dVN-1];
+				BallVertices[totalVertexBufferCount].colour = 0x00ffffff;
+				BallVertices[totalVertexBufferCount].tex[0].u = allUV[dVT-1].x;
+				BallVertices[totalVertexBufferCount].tex[0].v = allUV[dVT-1].y;
 			
-				masterCount++;	
-			
-			 	BallVertices[masterCount].pos = allVertexes[dV-1];
-				BallVertices[masterCount].normal = allNormals[dVN-1];
-				BallVertices[masterCount].colour = 0x00ffffff;
-				BallVertices[masterCount].tex[0].u = allUV[dVT-1].x;
-				BallVertices[masterCount].tex[0].v = allUV[dVT-1].y;
+				totalVertexBufferCount++;	
+							
+				BallVertices[totalVertexBufferCount].pos = allVertexes[cV-1];
+				BallVertices[totalVertexBufferCount].normal = allNormals[cVN-1];
+				BallVertices[totalVertexBufferCount].colour = 0x00ffffff;
+				BallVertices[totalVertexBufferCount].tex[0].u = allUV[cVT-1].x;
+				BallVertices[totalVertexBufferCount].tex[0].v = allUV[cVT-1].y;
 				
-			  masterCount++;
+			  totalVertexBufferCount++;
 				
-				BallIndices[indexCount] = indexInternalCount;
-				BallIndices[indexCount+1] = indexInternalCount + 1;
-				BallIndices[indexCount+2] = indexInternalCount + 2;
-				BallIndices[indexCount+3] = 0xffff;
+				BallIndices[totalTrianglesCount] = indexInternalCount;
+				BallIndices[totalTrianglesCount+1] = indexInternalCount + 1;
+				BallIndices[totalTrianglesCount+2] = indexInternalCount + 2;
+				BallIndices[totalTrianglesCount+3] = 0xffff;
 				
 				indexInternalCount = indexInternalCount + 3;
-				indexCount = indexCount + 4;
+				totalTrianglesCount = totalTrianglesCount + 4;
 			}
 		}
 	}
 
-	printf("total tris count= %d\n", indexCount);
-	printf("total vertexes count= %d\n", masterCount);
+	printf("total vertexes count= %d\n", totalVertexBufferCount);
+	printf("total triangles count= %d\n", totalTrianglesCount);
 
 	fclose(objfp);
 
@@ -574,7 +629,8 @@ BOOL LoadTexture(const char *textureName) {
   UBYTE *data = NULL;
   FILE *fp;
   int size;
-
+  int mipMappingSize = 8;
+  
   fp = fopen(textureName, "rb");
   
   if (!fp) return FALSE;
@@ -587,8 +643,16 @@ BOOL LoadTexture(const char *textureName) {
   fread(data, 1, size - 128, fp);
   fclose(fp);
 
-  txtr = magAllocateTexture(8);
-  magUploadTexture(txtr, 8, data, 0);
+  /*
+  	The mipmappig texture size supported are
+		9 - 512x512
+		8 - 256x256
+		7 - 128x128
+		6 - 64x64
+	*/
+	txtr = magAllocateTexture(mipMappingSize);
+  magUploadTexture(txtr, mipMappingSize, data, 0);
+
   FreeMem(data, size - 128);
 
   return TRUE;
@@ -597,31 +661,52 @@ BOOL LoadTexture(const char *textureName) {
 BOOL initMaggieEngine(void) {
   mat4_identity(&worldMatrix);
   mat4_translate(&viewMatrix, cameraPosition.x, cameraPosition.y, cameraPosition.z);
-  mat4_perspective(&perspective, 60.0f, targetRatio, 0.01f, 50.0f);
+  mat4_perspective(&perspective, 60.0f, targetRatio, 0.01f, 120.0f);
  	
-  vBuffer = magAllocateVertexBuffer(masterCount);
-  iBuffer = magAllocateIndexBuffer(indexCount);
+  vBuffer = magAllocateVertexBuffer(totalVertexBufferCount);
+  iBuffer = magAllocateIndexBuffer(totalTrianglesCount);
   
-  magUploadVertexBuffer(vBuffer, BallVertices, 0, masterCount);
-  magUploadIndexBuffer(iBuffer, BallIndices, 0, indexCount);
+  magUploadVertexBuffer(vBuffer, BallVertices, 0, totalVertexBufferCount);
+  magUploadIndexBuffer(iBuffer, BallIndices, 0, totalTrianglesCount);
 
   return TRUE;
 }
 
 // CORE FUNCTIONS
 
+ 
+void visualDebug(void) {
+	// Draw the fps counter
+  SAGE_PrintFText(10, 10, "%d fps", SAGE_GetFps());
+}
+
 void update(void) {
   UBYTE new_char;
   UWORD char_index;
-  mat4 xRot, yRot;
+  mat4 xRot, yRot, zRot;
+  int i;
   
-  // object rotation
- 	mat4_rotateX(&xRot, xangle);
-  mat4_rotateY(&yRot, yangle);
-  mat4_mul(&worldMatrix, &xRot, &yRot);
-  
-  xangle += 0.01f;
-  yangle += 0.0123f;
+  // rotate all the ball independently
+	for (i = 0; i<totalBalls; i++) {
+  	mat4_rotateX(&xRot, ballRotation[i].x);
+    mat4_rotateY(&yRot, ballRotation[i].y);
+    //mat4_rotateZ(&zRot, ballRotation[i].z);
+    mat4_mul(&ballRotationMatrix[i], &xRot, &yRot);
+    
+    switch (ballDirection[i]) {
+    	case towardRight:
+      	ballRotation[i].x -= ballRotationDefaults[i].x;
+        ballRotation[i].y -= ballRotationDefaults[i].y;
+        ballRotation[i].z -= ballRotationDefaults[i].z;
+    	break;
+    	
+    	case towardLeft:
+      	ballRotation[i].x += ballRotationDefaults[i].x;
+        ballRotation[i].y += ballRotationDefaults[i].y;
+        ballRotation[i].z -= ballRotationDefaults[i].z;
+    	break;
+  	}
+  }
   
  	// camera position
  	//mat4_translate(&viewMatrix, cameraPosition.x, cameraPosition.y, cameraPosition.z);
@@ -680,91 +765,223 @@ void update(void) {
   }
   
   // Y position of the text
-  scroll_posy = 440;//curve[curve_idx++];
+  scroll_posy = 440;
 }
 
 void render(void) {
-	// Sage to get the current pixel buffer
+  int i = 0;
+  float startZ = 40.0f;
+  
+  // Sage to get the current pixel buffer
   SAGE_Bitmap *back_bitmap;  
   back_bitmap = SAGE_GetBackBitmap();
   
+	// clear the back screen
 	SAGE_ClearScreen();
 	
+	// blit the logo and the chess grid
 	atlasBlitGridChess();
-	atlasBlitVampireLogo(192, 0);
+	atlasBlitVampireLogo((int)((SCREEN_WIDTH - ATLAS_VAMPIRE_LOGO_WIDTH) / 2), 0);
 			
 	// Maggie render
 
-	// Maggie start block
+	// --> Maggie start block
   magBeginScene();
 
 	// draw options:
-	// MAG_DRAWMODE_DEPTHBUFFER | MAG_DRAWMODE_32BIT | MAG_DRAWMODE_NORMAL | MAG_DRAWMODE_BILINEAR | MAG_DRAWM ODE_LIGHTING
-	magSetDrawMode(MAG_DRAWMODE_BILINEAR | MAG_DRAWMODE_DEPTHBUFFER | MAG_DRAWMODE_LIGHTING);
+	// MAG_DRAWMODE_DEPTHBUFFER | MAG_DRAWMODE_32BIT | MAG_DRAWMODE_NORMAL | MAG_DRAWMODE_BILINEAR | MAG_DRAWMODE_LIGHTING
+	magSetDrawMode(MAG_DRAWMODE_NORMAL | MAG_DRAWMODE_LIGHTING);
 	
   magSetScreenMemory(back_bitmap->bitmap_buffer, SCREEN_WIDTH, SCREEN_HEIGHT);
   
   // clear options
 	// MAG_CLEAR_COLOUR | MAG_CLEAR_DEPTH
-	magClear(MAG_CLEAR_DEPTH);
+	//magClear(MAG_CLEAR_DEPTH);
 
   magSetWorldMatrix((float *)&worldMatrix);
   magSetViewMatrix((float *)&viewMatrix);
   magSetPerspectiveMatrix((float *)&perspective);
 
+  // add lights
 	magSetLightPosition(0, 20.0f, -20.0f, -10.0f);
 	magSetLightColour(0, 0x00ffffff);
-	magSetLightAttenuation(0, 800.0f);	
+	magSetLightAttenuation(0, 1400.0f);	
 	magSetLightType(0, MAG_LIGHT_POINT);
 
-	magSetLightPosition(1, -20.0f, 20.0f, 10.0f);
+	magSetLightPosition(1, -20.0f, 20.0f, 20.0f);
 	magSetLightColour(1, 0x00ffffff);
-	magSetLightAttenuation(1, 400.0f);	
+	magSetLightAttenuation(1, 300.0f);	
 	magSetLightType(1, MAG_LIGHT_POINT);
 	
-	magSetLightColour(2, 0x0f0f0f);	
+	magSetLightColour(2, 0x000000);	
 	magSetLightType(2, MAG_LIGHT_AMBIENT);
 		
+	// set the main UV texture
 	magSetTexture(0, txtr);
   magSetVertexBuffer(vBuffer);
   magSetIndexBuffer(iBuffer);
+  
+  // create N amount of balls
+	for (i = 0; i<totalBalls; i++) {
+    mat4 transMatrix;
+    
+    // change the position of XYZ
+    mat4_translate(&transMatrix, ballXPosition[i], floorY + (ballYPosition[ballYPositionShift[i]] * 1.8), startZ);
+    
+    // apply the position+rotation to the world
+		mat4_mul(&worldMatrix, &transMatrix, &ballRotationMatrix[i]);
+		
+		// update of the world
+		magSetWorldMatrix((float *)&worldMatrix);
 
- 	magDrawIndexedPolygons(0, masterCount, 0, indexCount);
-
-	// Maggie end block
+    // draw the object with the new position and rotation
+		magDrawIndexedPolygons(0, totalVertexBufferCount, 0, totalTrianglesCount);
+		
+		// shift of N position of the Y position array in order to have a wave effect where all the balls are
+		// shifted in Y position to not look boring
+    ballYPositionShift[i] += 3;
+    
+    // reaching the end of the array means we start from index 0
+    if (ballYPositionShift[i] >= ballYPositionsTotal) {
+      ballYPositionShift[i] = 0;
+    }
+    
+    // move in Z toward the camera
+		startZ -= 3.5;
+		
+    // move in X
+  	switch (ballDirection[i]) {
+    	
+    	case towardRight:
+      	ballXPosition[i] += 0.08;
+      	
+      	// switch direction if we hit the right boundary
+      	if (ballXPosition[i] > rightXBoundary) {
+          ballDirection[i] = towardLeft;
+      	}
+    	break;
+    	
+    	case towardLeft:
+      	ballXPosition[i] -= 0.08;
+      	
+      	// switch direction if we hit the left boundary
+      	if (ballXPosition[i] < leftXBoundary) {
+          ballDirection[i] = towardRight;
+      	}
+    	break;
+  	}
+	}
+	
+	// <-- Maggie end block
   magEndScene();
   
 	// Set the text layer view (using the wrapping feature of layers to simulate infite scroll)
   SAGE_SetLayerView(TEXTFIELD_LAYER, layer_posx, layer_posy, SCREEN_WIDTH, TEXTFIELD_HEIGHT);
   // Blit the text layer to the screen
   SAGE_BlitLayerToScreen(TEXTFIELD_LAYER, TEXTSCROLL_POSX, scroll_posy);
-  
+ 
+ 	visualDebug();
+ 	
   // Switch screen buffers
   SAGE_RefreshScreen();
 }
 
 void restore(void) {
-  // show the mouse
-  SAGE_ShowMouse();
-  // close the screen
-  SAGE_CloseScreen();
+	if (MaggieBase != NULL) {
+    CloseLibrary(MaggieBase);
+  }
   
   magFreeTexture(txtr);
   magFreeVertexBuffer(vBuffer);
   magFreeIndexBuffer(iBuffer);
   
-  if (MaggieBase != NULL) {
-    CloseLibrary(MaggieBase);
-  }
+ 	free(BallVertices);
+	free(BallIndices);
+	free(allVertexes);
+	free(allNormals);
+	free(allUV);
 }
 
-// 
+// MAIN
+
+float randomFloatNumber(int min, int max) {
+  float scale = rand() / RAND_MAX * (max - min) + min;
+  printf("min %f max %f\n", min, max);
+  printf("scale %f\n", scale);
+  return scale;
+}
 
 void main(int argc, char* argv[]) {
-	SAGE_Event *event = NULL;
+  SAGE_Event *event = NULL;
+  int i;
+  float rand;
+	/*
+	// nor model nor texture
+	if (argc == 1) {
+		printf("no arguments for 3D object and texture, using default 'assets/cube.obj' 'assets/uv_grid_checker_1.dds'\n");
+		filename_object = "assets/cube.obj";
+		filename_texture = "assets/uv_grid_checker.dds";
+	}
+
+	// just the model
+	if (argc == 2) {
+		filename_object = argv[1];
+		filename_texture = "assets/uv_grid_checker.dds";
+	}
 	
-	filename_object = "assets_demo/amiga_ball.obj";
-	filename_texture = "assets_demo/grid_uv_map.dds";
+	// model and the texture
+	if (argc == 3) {
+		filename_object = argv[1];
+		filename_texture = argv[2];
+	}
+	*/
+	filename_object = "assets/crystal_2.obj";
+	filename_texture = "assets/ball_uv_map_256x256.dds";
+	
+	// initialize balls X position+position direction
+	/*for (i=0; i<totalBalls; i++) {
+    rand = randomFloatNumber(-1200, 1200);
+    
+    ballXPosition[i] = (float)(rand / 1000);
+    
+    if (rand < 0.0) {
+      ballDirection[i] = towardLeft;
+    }
+    else {
+      ballDirection[i] = towardRight;
+    }
+  }*/
+  
+  // damn manual random I guess for now
+  ballXPosition[0] = 4.567561;
+  ballDirection[0] = towardRight;
+  
+  ballXPosition[1] = -8.378011;
+  ballDirection[1] = towardRight;
+  
+  ballXPosition[2] = 2.908011;
+  ballDirection[2] = towardLeft;
+  
+  ballXPosition[3] = 6.789077;
+  ballDirection[3] = towardRight;
+  
+  ballXPosition[4] = -2.849011;
+  ballDirection[4] = towardLeft;
+  
+  ballXPosition[5] = -7.890211;
+  ballDirection[5] = towardLeft;
+  
+  ballXPosition[6] = 9.987789;
+  ballDirection[6] = towardRight;
+  
+  ballXPosition[7] = 3.456113;
+  ballDirection[7] = towardLeft;
+  
+  ballXPosition[8] = -0.667861;
+  ballDirection[8] = towardRight;
+  
+  ballXPosition[9] = -5.567111;
+  ballDirection[9] = towardLeft;
 	
 	// the demo will only run on an Apollo Vampire 080
 	if (SAGE_ApolloCore() == FALSE) {
@@ -776,7 +993,8 @@ void main(int argc, char* argv[]) {
 	}
 	
 	// init the SAGE system
-  if (SAGE_Init(SMOD_VIDEO|SMOD_AUDIO|SMOD_INTERRUPTION)) {	
+  if (SAGE_Init(SMOD_VIDEO|SMOD_AUDIO|SMOD_INTERRUPTION)) {
+  	
   	// maggie library must be present
   	MaggieBase = OpenLibrary((UBYTE *)"maggie.library", 0);
 		if (!MaggieBase) {
@@ -789,81 +1007,101 @@ void main(int argc, char* argv[]) {
   		SAGE_ErrorLog("Cannot load 3D object model with name %s\n", filename_object);
 	  	return;
 		}
-	
-  	// load the texture
+
+	 	// load the texture
   	if (!LoadTexture(filename_texture)) {
   		SAGE_ErrorLog("Cannot load texture with name %s\n", filename_texture);
    		return;
   	}
-  	
+  
 		if (!initMaggieEngine()) {
-  		SAGE_ErrorLog("Maggie Library is not installed in the same level of the main demo file\n");
+  		SAGE_ErrorLog("Cannot initiate Maggie engine\n");
 	 	 	return;
 		}
 		
-		if (SAGE_OpenScreen(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_DEPTH, SSCR_STRICTRES)) {		
-      SAGE_HideMouse();
-		}
-		
-		createMainLayer();
-		createTextfieldLayer();
+		if (SAGE_OpenScreen(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_DEPTH, SSCR_STRICTRES)) {	
+    	SAGE_HideMouse();
+      SAGE_SetTextColor(0,255);
+  	 	SAGE_SetDrawingMode(SSCR_TXTTRANSP);
+  	 	
+  		// fps counter
+      if (SAGE_EnableFrameCount(TRUE)) {
+        //SAGE_MaximumFPS(120);
+        // setting to TRUE will set the fps to 60 and mutually negate MaximumFPS()
+       	SAGE_VerticalSynchro(FALSE);
+      }
+      else {
+        SAGE_ErrorLog("Can't activate frame rate counter !\n");
+      }
+
+      createMainLayer();
+			createTextfieldLayer();
 				
-		loadOrangesLogo();
-		loadAtlas();
-		loadGridChess();
-		loadFont();
-		loadMessage();
-		/*
-		// lock to 30fps
-	 	SAGE_MaximumFPS(30);
-		SAGE_VerticalSynchro(FALSE);
+			loadOrangesLogo();
+			loadAtlas();
+			loadGridChess();
+			loadFont();
+			loadMessage();
+			/*
+			// show Oranges logo
+			showOrangesLogo();
+			SAGE_Pause(50*3);
 			
-		showOrangesLogo();
-		SAGE_Pause(50*2);
-		
-		// NB: instead of recreating the layer, let's find out how to fill the layer with a single color
-		clearMainLayer();
-		
-		atlasBlitRunningOn();
-		SAGE_Pause(50*2);
-		atlasBlitVampireLogo(224, 224);
-		SAGE_RefreshScreen();
-		SAGE_Pause(50*2);
-		
-		clearMainLayer();
-		
-		atlasBlitPoweredBy();
-		SAGE_Pause(50*2);
-		atlasBlitSage();
-		SAGE_Pause(50*2);
-		clearMainLayer();
-		atlasBlitPoweredBy();
-		atlasBlitMaggieLibrary();
-		
-		SAGE_Pause(50*2);
-		clearMainLayer();
+			// NB: instead of recreating the layer, let's find out how to fill the layer with a single color
+			clearMainLayer();
+			
+			atlasBlitRunningOn();
+			SAGE_Pause(50*2);
+			atlasBlitVampireLogo(224, 224);
+			SAGE_RefreshScreen();
+			SAGE_Pause(50*3);
+			
+			clearMainLayer();
+			
+			// show "powered by" Sage
+			atlasBlitPoweredBy();
+			SAGE_Pause(50*2);
+			atlasBlitSage();
+			SAGE_Pause(50*3);
+
+			// show "powered by" Maggie
+			clearMainLayer();
+			atlasBlitPoweredBy();
+			atlasBlitMaggieLibrary();
+			SAGE_Pause(50*2);
 			*/
-		while (!finish) {
-			update();	
-			render();
-			
-			// read all events raised by the screen
+			// 
+			clearMainLayer();
+				
+			while (!finish) {
+				update();	
+				render();
+				
+				// read all events raised by the screen
     		while ((event = SAGE_GetEvent()) != NULL) {
     			// If we click on mouse button, we stop the loop
-      		if (event->type == SEVT_MOUSEBT) {
-        		finish = TRUE;
-      		}
-      		// If we press the ESC key, we stop the loop
+    	  	if (event->type == SEVT_MOUSEBT) {
+    	   		finish = TRUE;
+    	  	}
+    	  	// If we press the ESC key, we stop the loop
 					else if (event->type == SEVT_RAWKEY && event->code == SKEY_EN_ESC) {
-        		finish = TRUE;
-        	}
-      	}
+    	   		finish = TRUE;
+    	   	}
+    	  }
+			}
+
+			// free memory
+			restore();
+			
+			// show the mouse
+  		SAGE_ShowMouse();
+  		// close the screen
+  		SAGE_CloseScreen();
 		}
-		
-		restore();
 	}
 	
-	// demo ended
+  // demo ended
 	SAGE_Exit();
+	// exit message
 	SAGE_AppliLog("Thank you for watching! ^_^");
 }
