@@ -2,11 +2,9 @@
 
 /*
  TODO
- 
- . independent rotation of balls
- 
-*/
 
+*/
+ 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -107,6 +105,7 @@
 // ENUMS
 
 enum direction { towardLeft, towardRight, towardUp, towardDown };
+enum ballXBoundary { left = 0.0f , right = 0.0f };
 
 // GLOBAL VARIABLES
 
@@ -342,7 +341,23 @@ void atlasBlitGridChess(void) {
 
 // GENERIC HELPERS
 
+float* randomFloatNumbers(int size, float min, float max) {
+  int i;
+  float* array = (float*)malloc(size * sizeof(float));
+  
+  srand((unsigned int)time(NULL));
+  
+  for (i=0; i<size; i++) {
+    array[i] = min + ((float)rand()/(float)(RAND_MAX)) * (max - min);
+  }
+  
+  return array;
+}
 
+float* randomFloatNumber(float min, float max) {
+  srand((unsigned int)time(NULL));
+  return min + ((float)rand()/(float)(RAND_MAX)) * (max - min);
+}
 
 // 3D
 
@@ -375,7 +390,7 @@ float cameraStepMovement = 0.05f;
 #define rightXBoundary      12.0f
 
 #define totalBalls          10
-#define ballYPositionsTotal 129
+#define ballYPositionsTotal 128
 
 float rotationX = 0.0f, rotationY = 0.0f;
 
@@ -389,7 +404,7 @@ float ballYPosition[] = {
   -2.5210328, -2.560332, -2.5980763, -2.6342442, -2.6688128, -2.7017603, -2.7330682, -2.762717,
   -2.790688, -2.816965, -2.8415325, -2.8643742, -2.885477, -2.9048283, -2.922416, -2.9382293,
   -2.952259, -2.9644966, -2.974934, -2.9835658, -2.990386, -2.995391, -2.998577, -2.9999433,
-  -3.000000, -2.9999433, -2.998577, -2.995391, -2.990386, -2.9835658, -2.974934, -2.9644966,
+  -2.9999433, -2.998577, -2.995391, -2.990386, -2.9835658, -2.974934, -2.9644966,
   -2.952259, -2.9382293, -2.922416, -2.9048283, -2.885477, -2.8643742, -2.8415325, -2.816965,
   -2.790688, -2.762717, -2.7330682, -2.7017603, -2.6688128, -2.6342442, -2.5980763, -2.560332,
   -2.5210328, -2.4802027, -2.4378672, -2.3940523, -2.3487833, -2.3020883, -2.253996, -2.2045355,
@@ -399,9 +414,9 @@ float ballYPosition[] = {
   -0.623736, -0.55124915, -0.4784282, -0.4053169, -0.33195877, -0.25839984, -0.18468332, -0.1108554,
   -0.03695945
   };
-  
-//int ballYPositionShift[] = { 64, 52, 40, 28, 16 };
-int ballYPositionShift[totalBalls] = { 64, 54, 44, 34, 24, 14, 4, 2, 1, 0 };
+
+enum ballXBoundary ballXBoundaries[totalBalls];
+int ballYPositionShift[totalBalls];
 
 vec3 ballRotationDefaults[totalBalls] = {
   { 0.04, 0.0323, 0.04 },
@@ -418,7 +433,6 @@ vec3 ballRotationDefaults[totalBalls] = {
 vec3 ballRotation[totalBalls]; 
 mat4 ballRotationMatrix[totalBalls];
 
-float ballRandomXStep[totalBalls];
 float ballXPosition[totalBalls];
 enum direction ballDirection[totalBalls];
 
@@ -771,6 +785,7 @@ void update(void) {
 void render(void) {
   int i = 0;
   float startZ = 40.0f;
+  float* randomFloatArray;
   
   // Sage to get the current pixel buffer
   SAGE_Bitmap *back_bitmap;  
@@ -821,6 +836,8 @@ void render(void) {
   magSetVertexBuffer(vBuffer);
   magSetIndexBuffer(iBuffer);
   
+  randomFloatArray = randomFloatNumbers(totalBalls, 0.05, 0.1);
+  
   // create N amount of balls
 	for (i = 0; i<totalBalls; i++) {
     mat4 transMatrix;
@@ -839,7 +856,7 @@ void render(void) {
 		
 		// shift of N position of the Y position array in order to have a wave effect where all the balls are
 		// shifted in Y position to not look boring
-    ballYPositionShift[i] += 3;
+    ballYPositionShift[i] += 2;
     
     // reaching the end of the array means we start from index 0
     if (ballYPositionShift[i] >= ballYPositionsTotal) {
@@ -849,11 +866,11 @@ void render(void) {
     // move in Z toward the camera
 		startZ -= 3.5;
 		
-    // move in X
+		// move in X
   	switch (ballDirection[i]) {
     	
     	case towardRight:
-      	ballXPosition[i] += 0.08;
+      	ballXPosition[i] += 0.08;//randomFloatArray[i];
       	
       	// switch direction if we hit the right boundary
       	if (ballXPosition[i] > rightXBoundary) {
@@ -862,7 +879,7 @@ void render(void) {
     	break;
     	
     	case towardLeft:
-      	ballXPosition[i] -= 0.08;
+      	ballXPosition[i] -= 0.08;//randomFloatArray[i];
       	
       	// switch direction if we hit the left boundary
       	if (ballXPosition[i] < leftXBoundary) {
@@ -871,6 +888,8 @@ void render(void) {
     	break;
   	}
 	}
+	
+	free(randomFloatArray);
 	
 	// <-- Maggie end block
   magEndScene();
@@ -904,17 +923,42 @@ void restore(void) {
 
 // MAIN
 
-float randomFloatNumber(int min, int max) {
-  float scale = rand() / RAND_MAX * (max - min) + min;
-  printf("min %f max %f\n", min, max);
-  printf("scale %f\n", scale);
-  return scale;
-}
-
 void main(int argc, char* argv[]) {
   SAGE_Event *event = NULL;
-  int i;
-  float rand;
+  
+  // generate random X position for each ball and also random intial Y position
+  int i, x = ballYPositionsTotal;
+  float rand, startXPosition = 50.0;
+  float* randomFloatArray;
+  
+  srand((unsigned int)time(NULL));
+  
+  randomFloatArray = randomFloatNumbers(totalBalls, leftXBoundary, rightXBoundary);
+
+  for (i=0; i<totalBalls; i++) {
+    rand = randomFloatArray[i];
+    
+    //ballXPosition[i] = rand * 5.0;
+
+    if (i % 2 == 0) {
+      ballXPosition[i] = startXPosition;
+      ballDirection[i] = towardLeft;
+    }
+    else {
+      ballXPosition[i] = startXPosition * -1.0;
+      ballDirection[i] = towardRight;
+    }
+    
+    startXPosition -= 2.5;
+    
+    // random Y position between each ball to not have all of them jumping from the same height
+    ballYPositionShift[i] = x;
+    
+    x -= (int)fabs(rand * 1.9);
+  }
+  
+  free(randomFloatArray);
+  
 	/*
 	// nor model nor texture
 	if (argc == 1) {
@@ -938,50 +982,7 @@ void main(int argc, char* argv[]) {
 	filename_object = "assets/crystal_2.obj";
 	filename_texture = "assets/ball_uv_map_256x256.dds";
 	
-	// initialize balls X position+position direction
-	/*for (i=0; i<totalBalls; i++) {
-    rand = randomFloatNumber(-1200, 1200);
-    
-    ballXPosition[i] = (float)(rand / 1000);
-    
-    if (rand < 0.0) {
-      ballDirection[i] = towardLeft;
-    }
-    else {
-      ballDirection[i] = towardRight;
-    }
-  }*/
-  
-  // damn manual random I guess for now
-  ballXPosition[0] = 4.567561;
-  ballDirection[0] = towardRight;
-  
-  ballXPosition[1] = -8.378011;
-  ballDirection[1] = towardRight;
-  
-  ballXPosition[2] = 2.908011;
-  ballDirection[2] = towardLeft;
-  
-  ballXPosition[3] = 6.789077;
-  ballDirection[3] = towardRight;
-  
-  ballXPosition[4] = -2.849011;
-  ballDirection[4] = towardLeft;
-  
-  ballXPosition[5] = -7.890211;
-  ballDirection[5] = towardLeft;
-  
-  ballXPosition[6] = 9.987789;
-  ballDirection[6] = towardRight;
-  
-  ballXPosition[7] = 3.456113;
-  ballDirection[7] = towardLeft;
-  
-  ballXPosition[8] = -0.667861;
-  ballDirection[8] = towardRight;
-  
-  ballXPosition[9] = -5.567111;
-  ballDirection[9] = towardLeft;
+	// INITIALIZE THE DEMO
 	
 	// the demo will only run on an Apollo Vampire 080
 	if (SAGE_ApolloCore() == FALSE) {
