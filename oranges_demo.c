@@ -130,6 +130,79 @@ UWORD message_pos = 0, font_posx[FONT_NUM], font_posy[FONT_NUM];
 UWORD char_posx = SCREEN_WIDTH, char_load = 0;
 UWORD layer_posx = SCREEN_WIDTH+FONT_WIDTH, layer_posy = 0, scroll_posy = 0;
 
+// GENERIC HELPERS
+
+float* randomFloatNumbers(int size, float min, float max) {
+  int i;
+  float* array = (float*)malloc(size * sizeof(float));
+  
+  srand((unsigned int)time(NULL));
+  
+  for (i=0; i<size; i++) {
+    array[i] = min + ((float)rand()/(float)(RAND_MAX)) * (max - min);
+  }
+  
+  return array;
+}
+
+float* randomFloatNumber(float min, float max) {
+  srand((unsigned int)time(NULL));
+  return min + ((float)rand()/(float)(RAND_MAX)) * (max - min);
+}
+
+int rgb888_to_rgb565(int red8, int green8, int blue8) {
+  int red5 = red8 >> 3;
+  int green6 = green8 >> 2;
+  int blue5 = blue8 >> 3;
+  
+  int red5_shifted = red5 << 11;
+  int green6_shifted = green6 << 5;
+  
+  int rgb565 = red5_shifted | green6_shifted | blue5;
+
+  return rgb565;
+}
+
+// FILL
+
+void fillArea(int x, int y, int width, int height, int color) {
+  SAGE_Bitmap *back_bitmap = SAGE_GetBackBitmap();
+  short *bitmap_buffer = back_bitmap->bitmap_buffer;
+  int i, j, current_x, current_y;
+
+  for (i=0; i<width; i++) {
+    for (j=0; j<height; j++) {
+      current_x = x + i;
+      current_y = y + j;
+      bitmap_buffer[(SCREEN_WIDTH * current_y) + current_x] = (short)color;
+    }
+  }
+}
+
+void clearBackScreen(int color) {
+  int x, y;
+  SAGE_Bitmap *bitmap = SAGE_GetBackBitmap();
+  short *buffer = bitmap->bitmap_buffer;
+
+  for (y=0; y<SCREEN_HEIGHT; y++) {
+    for (x=0; x<SCREEN_WIDTH; x++) {
+      buffer[(SCREEN_WIDTH * y) + x] = (short)color;
+    }
+  }
+}
+
+void clearFrontScreen(int color) {
+  int x, y;
+  SAGE_Bitmap *bitmap = SAGE_GetFrontBitmap();
+  short *buffer = bitmap->bitmap_buffer;
+
+  for (y=0; y<SCREEN_HEIGHT; y++) {
+    for (x=0; x<SCREEN_WIDTH; x++) {
+      buffer[(SCREEN_WIDTH * y) + x] = (short)color;
+    }
+  }
+}
+
 // 
 
 BOOL createMainLayer(void) {
@@ -140,9 +213,8 @@ BOOL createMainLayer(void) {
 
 void clearMainLayer(void) {
 	if (MAIN_LAYER != NULL) {
-		SAGE_ReleaseLayer(MAIN_LAYER);
+		clearBackScreen(rgb888_to_rgb565(0,0,0));
 	}
-	createMainLayer();
 }
 
 // ORANGES LOGO
@@ -268,108 +340,151 @@ BOOL loadMessage(void) {
 // Blit helpers
 
 void atlasBlitRunningOn(void) {
-	SAGE_BlitPictureToLayer(
+	SAGE_BlitPictureToBitmap(
 		atlas_picture,
 	 	ATLAS_RUNNING_ON_X,
 	 	ATLAS_RUNNING_ON_Y,
 	 	ATLAS_RUNNING_ON_WIDTH,
 	 	ATLAS_RUNNING_ON_HEIGHT,
-	 	MAIN_LAYER,
+	 	SAGE_GetBackBitmap(), //MAIN_LAYER
 	 	(SCREEN_WIDTH - ATLAS_RUNNING_ON_WIDTH) / 2,
 	 	24);
-	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
-	SAGE_RefreshScreen();
+
+	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
+	//SAGE_RefreshScreen();
 }
 
 void atlasBlitVampireLogo(int x_, int y_) {
-	SAGE_BlitPictureToLayer(
+	SAGE_BlitPictureToBitmap(
 		atlas_picture,
 	 	ATLAS_VAMPIRE_LOGO_X,
 	 	ATLAS_VAMPIRE_LOGO_Y,
 	 	ATLAS_VAMPIRE_LOGO_WIDTH,
 	 	ATLAS_VAMPIRE_LOGO_HEIGHT,
-	 	MAIN_LAYER,
+	 	SAGE_GetBackBitmap(), //MAIN_LAYER,
 	 	x_,
 	 	y_);
 	 	
-	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
+	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
 }
 
 void atlasBlitPoweredBy(void) {
-	SAGE_BlitPictureToLayer(
+	SAGE_BlitPictureToBitmap(
 		atlas_picture,
 	 	ATLAS_POWERED_BY_X,
 	 	ATLAS_POWERED_BY_Y,
 	 	ATLAS_POWERED_BY_WIDTH,
 	 	ATLAS_POWERED_BY_HEIGHT,
-	 	MAIN_LAYER,
+	 	SAGE_GetBackBitmap(), //MAIN_LAYER,
 	 	(SCREEN_WIDTH - ATLAS_POWERED_BY_WIDTH) / 2,
 	 	24);
-	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
-	SAGE_RefreshScreen();
+	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
+	//SAGE_RefreshScreen();
 }
 
 void atlasBlitSage(void) {
-	SAGE_BlitPictureToLayer(
+	SAGE_BlitPictureToBitmap(
 		atlas_picture,
 	 	ATLAS_SAGE_X,
 	 	ATLAS_SAGE_Y,
 	 	ATLAS_SAGE_WIDTH,
 	 	ATLAS_SAGE_HEIGHT,
-	 	MAIN_LAYER,
+	 	SAGE_GetBackBitmap(), //MAIN_LAYER,
 	 	(SCREEN_WIDTH - ATLAS_SAGE_WIDTH) / 2,
 	 	((SCREEN_HEIGHT - ATLAS_SAGE_HEIGHT) / 2) + 32);
 	 	
-	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
-	SAGE_RefreshScreen();
+	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
+	//SAGE_RefreshScreen();
 }
 
 void atlasBlitMaggieLibrary(void) {
-	SAGE_BlitPictureToLayer(
+	SAGE_BlitPictureToBitmap(
 		atlas_picture,
 	 	ATLAS_MAGGIE_LIBRARY_X,
 	 	ATLAS_MAGGIE_LIBRARY_Y,
 	 	ATLAS_MAGGIE_LIBRARY_WIDTH,
 	 	ATLAS_MAGGIE_LIBRARY_HEIGHT,
-	 	MAIN_LAYER,
+	 	SAGE_GetBackBitmap(), //MAIN_LAYER,
 	 	(SCREEN_WIDTH - ATLAS_MAGGIE_LIBRARY_WIDTH) / 2,
 	 	((SCREEN_HEIGHT - ATLAS_MAGGIE_LIBRARY_HEIGHT) / 2) + 32);
 	 	
-	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
-	SAGE_RefreshScreen();
+	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
+	//SAGE_RefreshScreen();
 }
 
 void atlasBlitGridChess(void) {
-	SAGE_BlitPictureToLayer(
+	SAGE_BlitPictureToBitmap(
 		grid_chess_picture,
 	 	0,
 	 	0,
 	 	GRID_CHESS_WIDTH,
 	 	GRID_CHESS_HEIGHT,
-	 	MAIN_LAYER,
+	 	SAGE_GetBackBitmap(), //MAIN_LAYER,
 	 	0,
 	 	144);
 	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
 }
 
-// GENERIC HELPERS
+// FADE effect
 
-float* randomFloatNumbers(int size, float min, float max) {
+float fadeStatus = -0.1f;
+BOOL goingUp = TRUE;
+
+void FadeScreen(ULONG *srcBuffer,
+                ULONG *destBuffer,
+                int startX,
+                int startY,
+                int width,
+                int height,
+                int screenWidth,
+                float fadeValue) {
   int i;
-  float* array = (float*)malloc(size * sizeof(float));
-  
-  srand((unsigned int)time(NULL));
-  
-  for (i=0; i<size; i++) {
-    array[i] = min + ((float)rand()/(float)(RAND_MAX)) * (max - min);
+  // find the start position of the pixels to start the fade 
+  int modulus = (screenWidth * startY) + startX;
+  // get the fade value
+  ULONG iT = fadeValue * 256.0f;
+	ULONG nPixels = width *height;
+    
+  for (i = 0; i < nPixels; ++i) {
+   	ULONG pixel = srcBuffer[i];
+    ULONG r = ((pixel & 0x00ff0000) * iT >> 8) & 0x00ff0000;
+    ULONG g = ((pixel & 0x0000ff00) * iT >> 8) & 0x0000ff00;
+    ULONG b = ((pixel & 0x000000ff) * iT >> 8) & 0x000000ff;
+    destBuffer[i] = r | g | b;
   }
-  
-  return array;
 }
 
-float* randomFloatNumber(float min, float max) {
-  srand((unsigned int)time(NULL));
-  return min + ((float)rand()/(float)(RAND_MAX)) * (max - min);
+void FadeInOut(float step) {
+  SAGE_Bitmap *back_bitmap = SAGE_GetBackBitmap();
+	
+	FadeScreen(
+  	back_bitmap->bitmap_buffer, 
+  	back_bitmap->bitmap_buffer,
+  	0,
+  	0, 
+  	SCREEN_WIDTH,
+  	SCREEN_HEIGHT,
+  	SCREEN_WIDTH,
+  	fadeStatus);
+	
+	if (goingUp) {
+		fadeStatus = fadeStatus + step;
+		
+		if (fadeStatus >= 1.0f) {
+			fadeStatus = 1.0f;
+			goingUp = FALSE;
+		}
+	}
+	else {
+		fadeStatus = fadeStatus - step;
+		
+		if (fadeStatus <= 0.0f) {
+			fadeStatus = 0.0f;
+			goingUp = TRUE;
+		}
+	}
+
+	printf("fadeStatus %f\n", fadeStatus);
 }
 
 // 3D
@@ -1198,11 +1313,15 @@ void main(int argc, char* argv[]) {
 			//SAGE_Pause(50*3);
 			
 			// NB: instead of recreating the layer, let's find out how to fill the layer with a single color
-			clearMainLayer();
-
+			//clearMainLayer();
+      //SAGE_RefreshScreen();
+      
 			// show "powered on" + Vampire pixel art logo
-			/*atlasBlitRunningOn();
-			SAGE_Pause(50*2);
+			atlasBlitRunningOn();
+			SAGE_RefreshScreen();
+			SAGE_Pause(50*3);
+			
+			atlasBlitRunningOn();
 			atlasBlitVampireLogo(
   			(SCREEN_WIDTH - ATLAS_VAMPIRE_LOGO_WIDTH) / 2, 
   			((SCREEN_HEIGHT - ATLAS_VAMPIRE_LOGO_HEIGHT) / 2) + 32
@@ -1211,24 +1330,31 @@ void main(int argc, char* argv[]) {
 			SAGE_Pause(50*3);
 			
 			clearMainLayer();
-			SAGE_Pause(50*2);
+			SAGE_RefreshScreen();
+			SAGE_Pause(50*1);
 			
 			// show "powered by" Sage
 			atlasBlitPoweredBy();
+			SAGE_RefreshScreen();
 			SAGE_Pause(50*2);
+			atlasBlitPoweredBy();
 			atlasBlitSage();
+			SAGE_RefreshScreen();
 			SAGE_Pause(50*3);
 
 			// show "powered by" Maggie
 			atlasBlitPoweredBy();
+			SAGE_RefreshScreen();
 			SAGE_Pause(50*2);
+			atlasBlitPoweredBy();
 			atlasBlitMaggieLibrary();
+			SAGE_RefreshScreen();
 			SAGE_Pause(50*3);
 			
 			// 
 			clearMainLayer();
-			SAGE_Pause(50*2);
-			*/
+			SAGE_RefreshScreen();
+      
 			// main loop to render the screen
 			while (!finish) {
 				update();	
