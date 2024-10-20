@@ -3,6 +3,8 @@
 /*
  TODO
 
+  . swap chess floor with a 3d plane with chess texture movement in X only with slowdown near the end
+    in both left/right sides
 */
  
 #include <stdio.h>
@@ -23,8 +25,8 @@
 // GLOBAL VARIABLES
 
 // screen definition
-#define SCREEN_WIDTH							640
-#define SCREEN_HEIGHT   					512
+#define SCREEN_WIDTH							320
+#define SCREEN_HEIGHT   					256
 #define SCREEN_DEPTH    					16
 
 // main layer
@@ -46,9 +48,9 @@
 
 // grid layer 
 #define	GRID_CHESS_LAYER					3
-#define GRID_CHESS_FILENAME				"assets/grid_chess.png"
-#define GRID_CHESS_WIDTH					640
-#define GRID_CHESS_HEIGHT   			118
+#define GRID_CHESS_FILENAME				"assets/grid_chess_320.png"
+#define GRID_CHESS_WIDTH					320
+#define GRID_CHESS_HEIGHT   			59
 
 // atlas layer pieces
 // running on
@@ -89,7 +91,7 @@
 #define FONT_NUM              60
 #define FONTPIC_WIDTH         160
 #define FONTPIC_HEIGHT        120
-#define FONTPIC_TRANSPARENCY  0x000000
+#define FONTPIC_TRANSPARENCY  0x00ff00
 
 #define TEXTFIELD_WIDTH       SCREEN_WIDTH+FONT_WIDTH
 #define TEXTFIELD_HEIGHT      FONT_HEIGHT
@@ -98,9 +100,20 @@
 #define TEXTSCROLL_SPEED     	1
 #define TEXTSCROLL_POSX       0
 
+SAGE_Music *music = NULL;
+  
 // TEXT MESSAGE
 
 #define MESSAGE_FILENAME			"assets/message.txt"
+#define RAD(x)                ((x)*PI/180.0)
+#define CURVE_SCROLL          128 // smaller numbers create faster movement
+FLOAT curve[CURVE_SCROLL];
+UWORD curve_idx = 0;
+
+// MUSIC
+
+#define MUSIC_SLOT            10
+char *filename_music = "assets/funky_colors_fusion.mod";
 
 // ENUMS
 
@@ -113,7 +126,8 @@ BOOL finish = FALSE;
 SAGE_Picture *atlas_picture, *oranges_logo_picture, *grid_chess_picture, *font_picture;
 
 STRPTR message = NULL;
-UWORD message_pos = 0, font_posx[FONT_NUM], font_posy[FONT_NUM], char_posx = SCREEN_WIDTH, char_load = 0;
+UWORD message_pos = 0, font_posx[FONT_NUM], font_posy[FONT_NUM];
+UWORD char_posx = SCREEN_WIDTH, char_load = 0;
 UWORD layer_posx = SCREEN_WIDTH+FONT_WIDTH, layer_posy = 0, scroll_posy = 0;
 
 // 
@@ -192,8 +206,7 @@ BOOL loadGridChess(void) {
 
 // FONT
 
-BOOL createTextfieldLayer(void)
-{
+BOOL createTextfieldLayer(void) {
   if (SAGE_CreateLayer(TEXTFIELD_LAYER, TEXTFIELD_WIDTH, TEXTFIELD_HEIGHT)) {
     SAGE_SetLayerTransparency(TEXTFIELD_LAYER, FONTPIC_TRANSPARENCY);
     return TRUE;
@@ -262,8 +275,8 @@ void atlasBlitRunningOn(void) {
 	 	ATLAS_RUNNING_ON_WIDTH,
 	 	ATLAS_RUNNING_ON_HEIGHT,
 	 	MAIN_LAYER,
-	 	225,
-	 	97);
+	 	(SCREEN_WIDTH - ATLAS_RUNNING_ON_WIDTH) / 2,
+	 	24);
 	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
 	SAGE_RefreshScreen();
 }
@@ -290,8 +303,8 @@ void atlasBlitPoweredBy(void) {
 	 	ATLAS_POWERED_BY_WIDTH,
 	 	ATLAS_POWERED_BY_HEIGHT,
 	 	MAIN_LAYER,
-	 	225,
-	 	97);
+	 	(SCREEN_WIDTH - ATLAS_POWERED_BY_WIDTH) / 2,
+	 	24);
 	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
 	SAGE_RefreshScreen();
 }
@@ -304,8 +317,8 @@ void atlasBlitSage(void) {
 	 	ATLAS_SAGE_WIDTH,
 	 	ATLAS_SAGE_HEIGHT,
 	 	MAIN_LAYER,
-	 	257,
-	 	257);
+	 	(SCREEN_WIDTH - ATLAS_SAGE_WIDTH) / 2,
+	 	((SCREEN_HEIGHT - ATLAS_SAGE_HEIGHT) / 2) + 32);
 	 	
 	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
 	SAGE_RefreshScreen();
@@ -319,8 +332,8 @@ void atlasBlitMaggieLibrary(void) {
 	 	ATLAS_MAGGIE_LIBRARY_WIDTH,
 	 	ATLAS_MAGGIE_LIBRARY_HEIGHT,
 	 	MAIN_LAYER,
-	 	161,
-	 	257);
+	 	(SCREEN_WIDTH - ATLAS_MAGGIE_LIBRARY_WIDTH) / 2,
+	 	((SCREEN_HEIGHT - ATLAS_MAGGIE_LIBRARY_HEIGHT) / 2) + 32);
 	 	
 	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
 	SAGE_RefreshScreen();
@@ -335,7 +348,7 @@ void atlasBlitGridChess(void) {
 	 	GRID_CHESS_HEIGHT,
 	 	MAIN_LAYER,
 	 	0,
-	 	288);
+	 	144);
 	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
 }
 
@@ -435,6 +448,22 @@ mat4 ballRotationMatrix[totalBalls];
 
 float ballXPosition[totalBalls];
 enum direction ballDirection[totalBalls];
+
+// 
+
+BOOL initCurve(void) {
+  FLOAT angle;
+  ULONG i, amplitude;
+
+  angle = 180.0;
+  amplitude = 16;
+  printf("amplitude %u\n", amplitude);
+  for (i = 0;i < CURVE_SCROLL;i++) {
+    curve[i] = (int)amplitude + (sin(RAD(angle)) * amplitude);
+    angle += (360.0 / CURVE_SCROLL);
+  }
+  return TRUE;
+}
 
 // OBJ LOADER
 
@@ -588,10 +617,10 @@ BOOL LoadObjModel(const char *modelName) {
 				BallIndices[totalTrianglesCount] = indexInternalCount;
 				BallIndices[totalTrianglesCount+1] = indexInternalCount + 1;
 				BallIndices[totalTrianglesCount+2] = indexInternalCount + 2;
-				BallIndices[totalTrianglesCount+3] = 0xffff;
+				//BallIndices[totalTrianglesCount+3] = 0xffff;
 				
 				indexInternalCount = indexInternalCount + 3;
-				totalTrianglesCount = totalTrianglesCount + 4;
+				totalTrianglesCount = totalTrianglesCount + 3;
 			}
 			
 			// in case we have a quad, we convert it to a tris: a+b+c and b+c+d
@@ -623,10 +652,10 @@ BOOL LoadObjModel(const char *modelName) {
 				BallIndices[totalTrianglesCount] = indexInternalCount;
 				BallIndices[totalTrianglesCount+1] = indexInternalCount + 1;
 				BallIndices[totalTrianglesCount+2] = indexInternalCount + 2;
-				BallIndices[totalTrianglesCount+3] = 0xffff;
+				//BallIndices[totalTrianglesCount+3] = 0xffff;
 				
 				indexInternalCount = indexInternalCount + 3;
-				totalTrianglesCount = totalTrianglesCount + 4;
+				totalTrianglesCount = totalTrianglesCount + 3;
 			}
 		}
 	}
@@ -643,7 +672,7 @@ BOOL LoadTexture(const char *textureName) {
   UBYTE *data = NULL;
   FILE *fp;
   int size;
-  int mipMappingSize = 8;
+  int mipMappingSize = 6;
   
   fp = fopen(textureName, "rb");
   
@@ -688,15 +717,29 @@ BOOL initMaggieEngine(void) {
 
 // CORE FUNCTIONS
 
- 
 void visualDebug(void) {
 	// Draw the fps counter
   SAGE_PrintFText(10, 10, "%d fps", SAGE_GetFps());
 }
 
-void update(void) {
-  UBYTE new_char;
-  UWORD char_index;
+
+void updateKeyboardKeysListener(void) {
+  SAGE_Event *event = NULL;
+  
+  // read all events raised by the screen
+	while ((event = SAGE_GetEvent()) != NULL) {
+		// If we click on mouse button, we stop the loop
+  	if (event->type == SEVT_MOUSEBT) {
+   		finish = TRUE;
+  	}
+  	// If we press the ESC key, we stop the loop
+		else if (event->type == SEVT_RAWKEY && event->code == SKEY_EN_ESC) {
+   		finish = TRUE;
+   	}
+  }
+}
+
+void update3DBalls(void) {
   mat4 xRot, yRot, zRot;
   int i;
   
@@ -724,7 +767,83 @@ void update(void) {
   
  	// camera position
  	//mat4_translate(&viewMatrix, cameraPosition.x, cameraPosition.y, cameraPosition.z);
- 	
+}
+
+void updateScrolltext_new(void) {
+  UBYTE new_char;
+  UWORD char_index;
+  int i, x, y, posY = 0, blitSize = 20, startY = 0;
+  
+  // for loop to clear the text field layer before blitting again
+  for (y=0; y<3; y++) {
+    for (x=0; x<16; x++) {
+     SAGE_BlitPictureToLayer(
+       atlas_picture,
+       ATLAS_WIDTH - blitSize,
+       0,
+       blitSize,
+       blitSize,
+       TEXTFIELD_LAYER,
+       blitSize * x,
+       blitSize * y);
+    }
+  }
+  
+  char_posx = 0;
+  
+  // cycle through all the letters
+  // Should we load a new char from the message
+  for (i=0; i<10; i++) {
+    new_char = message[i];
+    
+    if (new_char < ' ') {
+      char_index = 0;
+    }
+    else {
+    	// "Space" is our first char in the font picture
+      char_index = new_char - ' ';
+      // If we have some chars that are not in our fonts
+      if (char_index >= FONT_NUM) {
+        char_index = 0;
+      }
+    }
+    
+    // blit the char to the layer
+    SAGE_BlitPictureToLayer(
+    	font_picture,
+     	font_posx[char_index],
+     	font_posy[char_index],
+     	FONT_WIDTH,
+     	FONT_HEIGHT,
+     	TEXTFIELD_LAYER,
+     	char_posx,
+     	curve[curve_idx]);
+     printf("%f\n", curve[curve_idx]);
+    // update X position for the next character
+    char_posx += FONT_WIDTH;
+    
+    // update Y position for the next character
+    curve_idx++;// += FONT_WIDTH;
+    // this is for resetting the position to return to 0
+    curve_idx %= CURVE_SCROLL;
+  }
+  
+  //char_load -= TEXTSCROLL_SPEED;
+  //layer_posx += TEXTSCROLL_SPEED;
+  
+  //if (layer_posx >= (SCREEN_WIDTH + FONT_WIDTH)) {
+  //  layer_posx = 0;
+  //}
+  layer_posx = 320;    
+  // Y position of the text
+  // Move the scroll up and down
+  scroll_posy = 190;//204 + curve[curve_idx++];
+}
+
+void updateScrolltext_old(void) {
+  UBYTE new_char;
+  UWORD char_index;
+  
   // Should we load a new char from the message
   if (char_load == 0) {
     new_char = message[message_pos];
@@ -753,7 +872,7 @@ void update(void) {
       }
     }
     
-    // Copy the char to the layer
+    // blit the char to the layer
     SAGE_BlitPictureToLayer(
     	font_picture,
      	font_posx[char_index],
@@ -763,7 +882,7 @@ void update(void) {
      	TEXTFIELD_LAYER,
      	char_posx,
      	0);
-    
+     	
     char_posx += FONT_WIDTH;
     
     if (char_posx > SCREEN_WIDTH) {
@@ -774,12 +893,20 @@ void update(void) {
   char_load -= TEXTSCROLL_SPEED;
   layer_posx += TEXTSCROLL_SPEED;
   
-  if (layer_posx >= (SCREEN_WIDTH+FONT_WIDTH)) {
+  if (layer_posx >= (SCREEN_WIDTH + FONT_WIDTH)) {
     layer_posx = 0;
   }
-  
+    
   // Y position of the text
-  scroll_posy = 440;
+  // Move the scroll up and down
+  scroll_posy = 204 + curve[curve_idx++];
+  curve_idx %= CURVE_SCROLL;
+}
+
+void update(void) {
+  updateKeyboardKeysListener();
+  update3DBalls();
+  updateScrolltext_old();
 }
 
 void render(void) {
@@ -796,7 +923,7 @@ void render(void) {
 	
 	// blit the logo and the chess grid
 	atlasBlitGridChess();
-	atlasBlitVampireLogo((int)((SCREEN_WIDTH - ATLAS_VAMPIRE_LOGO_WIDTH) / 2), 0);
+	atlasBlitVampireLogo((int)((SCREEN_WIDTH - ATLAS_VAMPIRE_LOGO_WIDTH) / 2), -15);
 			
 	// Maggie render
 
@@ -843,7 +970,7 @@ void render(void) {
     mat4 transMatrix;
     
     // change the position of XYZ
-    mat4_translate(&transMatrix, ballXPosition[i], floorY + (ballYPosition[ballYPositionShift[i]] * 1.8), startZ);
+    mat4_translate(&transMatrix, ballXPosition[i], floorY + (ballYPosition[ballYPositionShift[i]] * 1.4), startZ);
     
     // apply the position+rotation to the world
 		mat4_mul(&worldMatrix, &transMatrix, &ballRotationMatrix[i]);
@@ -852,11 +979,11 @@ void render(void) {
 		magSetWorldMatrix((float *)&worldMatrix);
 
     // draw the object with the new position and rotation
-		magDrawIndexedPolygons(0, totalVertexBufferCount, 0, totalTrianglesCount);
+		magDrawIndexedTriangles(0, totalVertexBufferCount, 0, totalTrianglesCount);
 		
 		// shift of N position of the Y position array in order to have a wave effect where all the balls are
 		// shifted in Y position to not look boring
-    ballYPositionShift[i] += 2;
+    ballYPositionShift[i] += 3;
     
     // reaching the end of the array means we start from index 0
     if (ballYPositionShift[i] >= ballYPositionsTotal) {
@@ -894,7 +1021,7 @@ void render(void) {
 	// <-- Maggie end block
   magEndScene();
   
-	// Set the text layer view (using the wrapping feature of layers to simulate infite scroll)
+	// Set the text layer view (using the wrapping feature of layers to simulate infinite scroll)
   SAGE_SetLayerView(TEXTFIELD_LAYER, layer_posx, layer_posy, SCREEN_WIDTH, TEXTFIELD_HEIGHT);
   // Blit the text layer to the screen
   SAGE_BlitLayerToScreen(TEXTFIELD_LAYER, TEXTSCROLL_POSX, scroll_posy);
@@ -924,8 +1051,6 @@ void restore(void) {
 // MAIN
 
 void main(int argc, char* argv[]) {
-  SAGE_Event *event = NULL;
-  
   // generate random X position for each ball and also random intial Y position
   int i, x = ballYPositionsTotal;
   float rand, startXPosition = 50.0;
@@ -959,6 +1084,11 @@ void main(int argc, char* argv[]) {
   
   free(randomFloatArray);
   
+  // create the sinus wave lookout table for the text
+  if (!initCurve()) {
+    return FALSE;
+  }
+  
 	/*
 	// nor model nor texture
 	if (argc == 1) {
@@ -979,8 +1109,8 @@ void main(int argc, char* argv[]) {
 		filename_texture = argv[2];
 	}
 	*/
-	filename_object = "assets/crystal_2.obj";
-	filename_texture = "assets/ball_uv_map_256x256.dds";
+	filename_object = "assets/crystal.obj";
+	filename_texture = "assets/ball_uv_map_64x64.dds";
 	
 	// INITIALIZE THE DEMO
 	
@@ -992,7 +1122,7 @@ void main(int argc, char* argv[]) {
 	else {
 		SAGE_AppliLog("Apollo Vampire found! ^_^");
 	}
-	
+	    
 	// init the SAGE system
   if (SAGE_Init(SMOD_VIDEO|SMOD_AUDIO|SMOD_INTERRUPTION)) {
   	
@@ -1020,44 +1150,68 @@ void main(int argc, char* argv[]) {
 	 	 	return;
 		}
 		
+		music = SAGE_LoadMusic(filename_music);
+  	if (music) {
+      if (!SAGE_AddMusic(MUSIC_SLOT, music)) {
+        SAGE_ErrorLog("Cannot load music\n");
+        SAGE_DisplayError();
+        return;
+      }
+    }
+    else {
+      SAGE_ErrorLog("Cannot initiate music\n");
+  		SAGE_DisplayError();
+  		return;
+  	}
+				
 		if (SAGE_OpenScreen(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_DEPTH, SSCR_STRICTRES)) {	
-    	SAGE_HideMouse();
+  		SAGE_HideMouse();
       SAGE_SetTextColor(0,255);
   	 	SAGE_SetDrawingMode(SSCR_TXTTRANSP);
   	 	
   		// fps counter
       if (SAGE_EnableFrameCount(TRUE)) {
-        //SAGE_MaximumFPS(120);
+        SAGE_MaximumFPS(30);
         // setting to TRUE will set the fps to 60 and mutually negate MaximumFPS()
        	SAGE_VerticalSynchro(FALSE);
       }
       else {
         SAGE_ErrorLog("Can't activate frame rate counter !\n");
       }
-
+			
+			// create main layers aka pixel buffers
       createMainLayer();
-			createTextfieldLayer();
-				
-			loadOrangesLogo();
-			loadAtlas();
-			loadGridChess();
-			loadFont();
-			loadMessage();
-			/*
+  		createTextfieldLayer();
+  			
+  		// load all the assets
+  		loadOrangesLogo();
+  		loadAtlas();
+  		loadGridChess();
+  		loadFont();
+  		loadMessage();
+		
+  		// start playing the music
+  		//SAGE_PlayMusic(MUSIC_SLOT);
+			
 			// show Oranges logo
-			showOrangesLogo();
-			SAGE_Pause(50*3);
+			//showOrangesLogo();
+			//SAGE_Pause(50*3);
 			
 			// NB: instead of recreating the layer, let's find out how to fill the layer with a single color
 			clearMainLayer();
-			
-			atlasBlitRunningOn();
+
+			// show "powered on" + Vampire pixel art logo
+			/*atlasBlitRunningOn();
 			SAGE_Pause(50*2);
-			atlasBlitVampireLogo(224, 224);
+			atlasBlitVampireLogo(
+  			(SCREEN_WIDTH - ATLAS_VAMPIRE_LOGO_WIDTH) / 2, 
+  			((SCREEN_HEIGHT - ATLAS_VAMPIRE_LOGO_HEIGHT) / 2) + 32
+  		);
 			SAGE_RefreshScreen();
 			SAGE_Pause(50*3);
 			
 			clearMainLayer();
+			SAGE_Pause(50*2);
 			
 			// show "powered by" Sage
 			atlasBlitPoweredBy();
@@ -1066,34 +1220,27 @@ void main(int argc, char* argv[]) {
 			SAGE_Pause(50*3);
 
 			// show "powered by" Maggie
-			clearMainLayer();
 			atlasBlitPoweredBy();
-			atlasBlitMaggieLibrary();
 			SAGE_Pause(50*2);
-			*/
+			atlasBlitMaggieLibrary();
+			SAGE_Pause(50*3);
+			
 			// 
 			clearMainLayer();
-				
+			SAGE_Pause(50*2);
+			*/
+			// main loop to render the screen
 			while (!finish) {
 				update();	
 				render();
-				
-				// read all events raised by the screen
-    		while ((event = SAGE_GetEvent()) != NULL) {
-    			// If we click on mouse button, we stop the loop
-    	  	if (event->type == SEVT_MOUSEBT) {
-    	   		finish = TRUE;
-    	  	}
-    	  	// If we press the ESC key, we stop the loop
-					else if (event->type == SEVT_RAWKEY && event->code == SKEY_EN_ESC) {
-    	   		finish = TRUE;
-    	   	}
-    	  }
 			}
 
 			// free memory
 			restore();
 			
+			// stop and clear the music
+			SAGE_StopMusic();
+      SAGE_ClearMusic();
 			// show the mouse
   		SAGE_ShowMouse();
   		// close the screen
