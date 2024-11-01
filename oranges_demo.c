@@ -1,4 +1,4 @@
-// sc LINK oranges_demo.c CPU=68060 MATH=68882 DATA=far CODE=far IDIR=libinclude: sage:lib/sage.lib NOICONS
+// sc LINK oranges_demo.c CPU=68060 MATH=68882 DATA=far CODE=far IDIR=libinclude: sage:lib/sage_debug.lib NOICONS
 
 /*
  TODO
@@ -37,12 +37,12 @@
 // atlas layer 
 #define	ATLAS_LAYER								1
 #define ATLAS_FILENAME						"assets/atlas.png"
-#define ATLAS_WIDTH								320
+#define ATLAS_WIDTH								368
 #define ATLAS_HEIGHT   						384
 
 // oranges ascii logo layer 
 #define	ORANGES_LAYER							2
-#define ORANGES_LOGO_FILENAME			"assets/oranges_ascii_logo.png"
+#define ORANGES_LOGO_FILENAME			"assets/vampire-girl.png" //"assets/oranges_ascii_logo.png"
 #define ORANGES_WIDTH							SCREEN_WIDTH
 #define ORANGES_HEIGHT   					SCREEN_HEIGHT
 
@@ -51,6 +51,8 @@
 #define GRID_CHESS_FILENAME				"assets/grid_chess_320.png"
 #define GRID_CHESS_WIDTH					320
 #define GRID_CHESS_HEIGHT   			59
+
+#define	DITHERING_LAYER					  4
 
 // atlas layer pieces
 // running on
@@ -91,7 +93,6 @@
 #define FONT_NUM              60
 #define FONTPIC_WIDTH         160
 #define FONTPIC_HEIGHT        120
-#define FONTPIC_TRANSPARENCY  0x00ff00
 
 #define TEXTFIELD_WIDTH       SCREEN_WIDTH+FONT_WIDTH
 #define TEXTFIELD_HEIGHT      FONT_HEIGHT
@@ -100,13 +101,15 @@
 #define TEXTSCROLL_SPEED     	1
 #define TEXTSCROLL_POSX       0
 
+#define GLOBAL_TRANSPARENCY  0xff00ff
+
 SAGE_Music *music = NULL;
   
 // TEXT MESSAGE
 
 #define MESSAGE_FILENAME			"assets/message.txt"
 #define RAD(x)                ((x)*PI/180.0)
-#define CURVE_SCROLL          128 // smaller numbers create faster movement
+#define CURVE_SCROLL          112 // smaller numbers create faster movement
 FLOAT curve[CURVE_SCROLL];
 UWORD curve_idx = 0;
 
@@ -213,8 +216,14 @@ BOOL createMainLayer(void) {
 
 void clearMainLayer(void) {
 	if (MAIN_LAYER != NULL) {
-		clearBackScreen(rgb888_to_rgb565(0,0,0));
+		clearBackScreen(rgb888_to_rgb565(0,255,0));
 	}
+}
+
+BOOL createDitheringLayer(void) {
+	if (SAGE_CreateLayer(DITHERING_LAYER, SCREEN_WIDTH, SCREEN_HEIGHT)) {
+    return TRUE;
+  }
 }
 
 // ORANGES LOGO
@@ -244,13 +253,15 @@ void showOrangesLogo(void) {
 
 BOOL loadAtlas(void) {
 	atlas_picture = SAGE_LoadPicture(ATLAS_FILENAME);
-
+	
+	SAGE_SetPictureTransparency(atlas_picture, GLOBAL_TRANSPARENCY);
+  
 	if (atlas_picture == NULL) {
   	SAGE_DisplayError();
   	return FALSE;
   }
     
-  if (SAGE_CreateLayerFromPicture(ATLAS_LAYER, atlas_picture)) { 
+  if (SAGE_CreateLayerFromPicture(ATLAS_LAYER, atlas_picture)) {  
   	return TRUE;
  	}
   
@@ -280,7 +291,7 @@ BOOL loadGridChess(void) {
 
 BOOL createTextfieldLayer(void) {
   if (SAGE_CreateLayer(TEXTFIELD_LAYER, TEXTFIELD_WIDTH, TEXTFIELD_HEIGHT)) {
-    SAGE_SetLayerTransparency(TEXTFIELD_LAYER, FONTPIC_TRANSPARENCY);
+    SAGE_SetLayerTransparency(TEXTFIELD_LAYER, GLOBAL_TRANSPARENCY);
     return TRUE;
   }
   SAGE_DisplayError();
@@ -419,10 +430,10 @@ void atlasBlitGridChess(void) {
 	 	0,
 	 	GRID_CHESS_WIDTH,
 	 	GRID_CHESS_HEIGHT,
-	 	SAGE_GetBackBitmap(), //MAIN_LAYER,
+	 	SAGE_GetBackBitmap(),
 	 	0,
 	 	144);
-	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
+	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
 }
 
 // FADE effect
@@ -485,6 +496,70 @@ void FadeInOut(float step) {
 	}
 
 	printf("fadeStatus %f\n", fadeStatus);
+}
+
+// choose blit width and height as 16 or 32 to match the dither mask sequence
+void ditheringTransition(int startX, int startY, int blitWidth, int blitHeight, int lines, int columns) {
+  int i, x=10, line, column, ditherXPosition, trackXposition = 0;
+
+  if (blitWidth == 32) {
+    ditherXPosition = ATLAS_WIDTH-32;
+  }
+  if (blitWidth == 16) {
+    ditherXPosition = ATLAS_WIDTH-48;
+  }
+  
+  SAGE_BlitPictureToLayer(
+       oranges_logo_picture, 
+       0,
+       0,
+       ORANGES_WIDTH,
+       ORANGES_HEIGHT,
+       DITHERING_LAYER,
+       0,
+       0);
+       
+  SAGE_BlitLayerToScreen(DITHERING_LAYER, 0, 0);
+  SAGE_RefreshScreen(); 
+	SAGE_Pause(50);
+	
+	for (line = 0; line < lines; line++) {
+  	printf("line: %d\n", line);
+
+    for (column = 0; column < columns; column++) {
+      printf("column: %d\n", column);
+      
+      // make a worm style effect
+    	if (line%2 == 0) {
+      	printf("in > direction\n");
+      	trackXposition = startX+(column*blitWidth);
+    	}
+    	else {
+      	printf("in < direction\n");
+      	trackXposition = (startX + ((columns - 1) * blitWidth)) - (column * blitWidth);
+    	}
+  	
+      while (x>=0) {
+        SAGE_BlitPictureToLayer(
+           atlas_picture,
+           ditherXPosition,
+           blitHeight*x,
+           blitWidth,
+           blitHeight,
+           DITHERING_LAYER,
+           trackXposition,
+           startY+(line*blitHeight));
+           
+        SAGE_BlitLayerToScreen(DITHERING_LAYER, 0, 0);
+        SAGE_RefreshScreen(); 
+        SAGE_Pause(1);
+        
+        x-=1;
+      }
+      
+      x = 10;
+    }
+  }
 }
 
 // 3D
@@ -775,8 +850,8 @@ BOOL LoadObjModel(const char *modelName) {
 		}
 	}
 
-	printf("total vertexes count= %d\n", totalVertexBufferCount);
-	printf("total triangles count= %d\n", totalTrianglesCount);
+	//printf("total vertexes count= %d\n", totalVertexBufferCount);
+	//printf("total triangles count= %d\n", totalTrianglesCount);
 
 	fclose(objfp);
 
@@ -890,7 +965,7 @@ void updateScrolltext_new(void) {
   int i, x, y, posY = 0, blitSize = 20, startY = 0;
   
   // for loop to clear the text field layer before blitting again
-  for (y=0; y<3; y++) {
+  /*for (y=0; y<3; y++) {
     for (x=0; x<16; x++) {
      SAGE_BlitPictureToLayer(
        atlas_picture,
@@ -902,7 +977,7 @@ void updateScrolltext_new(void) {
        blitSize * x,
        blitSize * y);
     }
-  }
+  }*/
   
   char_posx = 0;
   
@@ -1027,15 +1102,14 @@ void update(void) {
 void render(void) {
   int i = 0;
   float startZ = 40.0f;
-  float* randomFloatArray;
+  float *randomFloatArray;
   
   // Sage to get the current pixel buffer
-  SAGE_Bitmap *back_bitmap;  
-  back_bitmap = SAGE_GetBackBitmap();
+  SAGE_Bitmap *back_bitmap = SAGE_GetBackBitmap();
   
 	// clear the back screen
 	SAGE_ClearScreen();
-	
+
 	// blit the logo and the chess grid
 	atlasBlitGridChess();
 	atlasBlitVampireLogo((int)((SCREEN_WIDTH - ATLAS_VAMPIRE_LOGO_WIDTH) / 2), -15);
@@ -1310,6 +1384,9 @@ void main(int argc, char* argv[]) {
 			
 			// show Oranges logo
 			//showOrangesLogo();
+			createDitheringLayer();
+			ditheringTransition(32, 32, 16, 16, 5, 7);
+      		
 			//SAGE_Pause(50*3);
 			
 			// NB: instead of recreating the layer, let's find out how to fill the layer with a single color
@@ -1317,7 +1394,7 @@ void main(int argc, char* argv[]) {
       //SAGE_RefreshScreen();
       
 			// show "powered on" + Vampire pixel art logo
-			atlasBlitRunningOn();
+			/*atlasBlitRunningOn();
 			SAGE_RefreshScreen();
 			SAGE_Pause(50*3);
 			
@@ -1357,10 +1434,11 @@ void main(int argc, char* argv[]) {
       
 			// main loop to render the screen
 			while (!finish) {
-				update();	
-				render();
+				//update();	
+				updateKeyboardKeysListener();
+				//render();
 			}
-
+      */
 			// free memory
 			restore();
 			
