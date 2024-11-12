@@ -24,6 +24,9 @@
 
 // GLOBAL VARIABLES
 
+#define GLOBAL_TRANSPARENCY         0xff00ff
+#define GLOBAL_BLACK_TRANSPARENCY   0x000000
+
 // screen definition
 #define SCREEN_WIDTH							320
 #define SCREEN_HEIGHT   					256
@@ -37,7 +40,7 @@
 // atlas layer 
 #define	ATLAS_LAYER								1
 #define ATLAS_FILENAME						"assets/atlas.png"
-#define ATLAS_WIDTH								368
+#define ATLAS_WIDTH								416
 #define ATLAS_HEIGHT   						384
 
 // oranges ascii logo layer 
@@ -47,43 +50,68 @@
 #define ORANGES_HEIGHT   					SCREEN_HEIGHT
 
 // grid layer 
-#define	GRID_CHESS_LAYER					3
+
 #define GRID_CHESS_FILENAME				"assets/grid_chess_320.png"
 #define GRID_CHESS_WIDTH					320
-#define GRID_CHESS_HEIGHT   			59
+#define GRID_CHESS_HEIGHT   			64
+#define	GRID_CHESS_LAYER					3
+#define GRID_CHESS_LAYER_WIDTH	  GRID_CHESS_WIDTH
+#define GRID_CHESS_LAYER_HEIGHT	  GRID_CHESS_HEIGHT
 
-#define	DITHERING_LAYER					  4
-
-// atlas layer pieces
+// logos
 // running on
 #define ATLAS_RUNNING_ON_X				0
 #define ATLAS_RUNNING_ON_Y				64
 #define ATLAS_RUNNING_ON_WIDTH		192
 #define ATLAS_RUNNING_ON_HEIGHT		64
-
-// powered by
-#define ATLAS_POWERED_BY_X				0
-#define ATLAS_POWERED_BY_Y				0
-#define ATLAS_POWERED_BY_WIDTH		192
-#define ATLAS_POWERED_BY_HEIGHT		64
+#define	RUNNING_ON_LAYER					4
+#define RUNNING_ON_LAYER_WIDTH		ATLAS_RUNNING_ON_WIDTH
+#define RUNNING_ON_LAYER_HEIGHT		ATLAS_RUNNING_ON_HEIGHT
 
 // vampire logo
 #define ATLAS_VAMPIRE_LOGO_X			0
 #define ATLAS_VAMPIRE_LOGO_Y			128
 #define ATLAS_VAMPIRE_LOGO_WIDTH	224
 #define ATLAS_VAMPIRE_LOGO_HEIGHT	128
+#define	VAMPIRE_LAYER							5
+#define VAMPIRE_LAYER_WIDTH 	    ATLAS_VAMPIRE_LOGO_WIDTH
+#define VAMPIRE_LAYER_HEIGHT	    ATLAS_VAMPIRE_LOGO_HEIGHT
+
+// powered by
+#define ATLAS_POWERED_BY_X				0
+#define ATLAS_POWERED_BY_Y				0
+#define ATLAS_POWERED_BY_WIDTH		192
+#define ATLAS_POWERED_BY_HEIGHT		64
+#define	POWERED_BY_LAYER				  6
+#define POWERED_BY_LAYER_WIDTH 		ATLAS_POWERED_BY_WIDTH
+#define POWERED_BY_LAYER_HEIGHT		ATLAS_POWERED_BY_HEIGHT
 
 // sage
 #define ATLAS_SAGE_X							0
 #define ATLAS_SAGE_Y							256
 #define ATLAS_SAGE_WIDTH					128
 #define ATLAS_SAGE_HEIGHT					64
+#define	SAGE_LAYER				        7
+#define SAGE_LAYER_WIDTH 		      ATLAS_SAGE_WIDTH
+#define SAGE_LAYER_HEIGHT		      ATLAS_SAGE_HEIGHT
 
 // maggie
-#define ATLAS_MAGGIE_LIBRARY_X			0
-#define ATLAS_MAGGIE_LIBRARY_Y			320
-#define ATLAS_MAGGIE_LIBRARY_WIDTH	320
-#define ATLAS_MAGGIE_LIBRARY_HEIGHT	64
+#define ATLAS_MAGGIE_LIBRARY_X			    0
+#define ATLAS_MAGGIE_LIBRARY_Y			    320
+#define ATLAS_MAGGIE_LIBRARY_WIDTH	    320
+#define ATLAS_MAGGIE_LIBRARY_HEIGHT	    64
+#define	MAGGIE_LIBRARY_LAYER		        8
+#define MAGGIE_LIBRARY_LAYER_WIDTH 			ATLAS_MAGGIE_LIBRARY_WIDTH
+#define MAGGIE_LIBRARY_LAYER_HEIGHT			ATLAS_MAGGIE_LIBRARY_HEIGHT
+
+// Sprites
+
+#define SPRITE_BANK             0                           
+#define RUNNING_ON_SPRITE       0
+#define POWERED_BY_SPRITE       1
+#define VAMPIRE_LOGO_SPRITE     2
+#define SAGE_SPRITE             3
+#define MAGGIE_LIBRARY_SPRITE   4
 
 // FONT
 
@@ -96,17 +124,16 @@
 
 #define TEXTFIELD_WIDTH       SCREEN_WIDTH+FONT_WIDTH
 #define TEXTFIELD_HEIGHT      FONT_HEIGHT
-#define TEXTFIELD_LAYER       4
+#define TEXTFIELD_LAYER       9
 
-#define TEXTSCROLL_SPEED     	1
+#define TEXTSCROLL_SPEED     	2
 #define TEXTSCROLL_POSX       0
-
-#define GLOBAL_TRANSPARENCY  0xff00ff
 
 SAGE_Music *music = NULL;
   
 // TEXT MESSAGE
 
+#define M_PI                  3.14159265358979323846
 #define MESSAGE_FILENAME			"assets/message.txt"
 #define RAD(x)                ((x)*PI/180.0)
 #define CURVE_SCROLL          112 // smaller numbers create faster movement
@@ -122,10 +149,16 @@ char *filename_music = "assets/funky_colors_fusion.mod";
 
 enum direction { towardLeft, towardRight, towardUp, towardDown };
 enum ballXBoundary { left = 0.0f , right = 0.0f };
+enum ditherTransitionType { worm, fullLine, fullColumn };
+enum ditherTransitionFlow { in, out };
+enum ditherTransitionSpeed { slow, normal, fast };
 
 // GLOBAL VARIABLES
 
 BOOL finish = FALSE;
+BOOL isFinishSection1 = FALSE;
+BOOL isFinishSection2 = FALSE;
+BOOL isFinishSection3 = FALSE;
 SAGE_Picture *atlas_picture, *oranges_logo_picture, *grid_chess_picture, *font_picture;
 
 STRPTR message = NULL;
@@ -162,7 +195,9 @@ int rgb888_to_rgb565(int red8, int green8, int blue8) {
   int green6_shifted = green6 << 5;
   
   int rgb565 = red5_shifted | green6_shifted | blue5;
-
+//printf("r8=%d\n", red8);
+//printf("g8=%d\n", green8);
+//printf("b8=%d\n", blue8); 
   return rgb565;
 }
 
@@ -178,6 +213,18 @@ void fillArea(int x, int y, int width, int height, int color) {
       current_x = x + i;
       current_y = y + j;
       bitmap_buffer[(SCREEN_WIDTH * current_y) + current_x] = (short)color;
+    }
+  }
+}
+
+void clearLayerBitmap(int index, int color) {
+  int x, y;
+  SAGE_Bitmap *bitmap = SAGE_GetLayerBitmap(index);
+  short *buffer = bitmap->bitmap_buffer;
+
+  for (y=0; y<SCREEN_HEIGHT; y++) {
+    for (x=0; x<SCREEN_WIDTH; x++) {
+      buffer[(SCREEN_WIDTH * y) + x] = (short)color;
     }
   }
 }
@@ -208,21 +255,118 @@ void clearFrontScreen(int color) {
 
 // 
 
-BOOL createMainLayer(void) {
-	if (SAGE_CreateLayer(MAIN_LAYER, MAIN_LAYER_WIDTH, MAIN_LAYER_HEIGHT)) {  
-    return TRUE;
+BOOL createAllLayers(void) {
+  if (!SAGE_CreateLayer(MAIN_LAYER, MAIN_LAYER_WIDTH, MAIN_LAYER_HEIGHT)) {
+    SAGE_SetLayerTransparency(MAIN_LAYER, GLOBAL_BLACK_TRANSPARENCY);
+    return FALSE;
+  }
+  
+  if (!SAGE_CreateLayer(ATLAS_LAYER, ATLAS_WIDTH, ATLAS_HEIGHT)) {  
+    return FALSE;
+  }
+  
+  if (!SAGE_CreateLayer(ORANGES_LAYER, ORANGES_WIDTH, ORANGES_HEIGHT)) {
+    SAGE_SetLayerTransparency(ORANGES_LAYER, GLOBAL_BLACK_TRANSPARENCY);
+    return FALSE;
+  }
+  
+  if (!SAGE_CreateLayer(GRID_CHESS_LAYER, GRID_CHESS_WIDTH, GRID_CHESS_HEIGHT)) {  
+    return FALSE;
+  }
+
+  if (!SAGE_CreateLayer(RUNNING_ON_LAYER, RUNNING_ON_LAYER_WIDTH, RUNNING_ON_LAYER_HEIGHT)) {
+    SAGE_SetLayerTransparency(RUNNING_ON_LAYER, GLOBAL_BLACK_TRANSPARENCY);
+    return FALSE;
+  }
+  
+  if (!SAGE_CreateLayer(POWERED_BY_LAYER, POWERED_BY_LAYER_WIDTH, POWERED_BY_LAYER_HEIGHT)) {
+    SAGE_SetLayerTransparency(POWERED_BY_LAYER, GLOBAL_BLACK_TRANSPARENCY);
+    return FALSE;
+  }
+
+  if (!SAGE_CreateLayer(VAMPIRE_LAYER, VAMPIRE_LAYER_WIDTH, VAMPIRE_LAYER_HEIGHT)) {  
+    SAGE_SetLayerTransparency(VAMPIRE_LAYER, GLOBAL_BLACK_TRANSPARENCY);
+    return FALSE;
+  }
+
+  if (!SAGE_CreateLayer(SAGE_LAYER, SAGE_LAYER_WIDTH, SAGE_LAYER_HEIGHT)) {
+    SAGE_SetLayerTransparency(SAGE_LAYER, GLOBAL_BLACK_TRANSPARENCY);
+    return FALSE;
+  }
+
+  if (!SAGE_CreateLayer(MAGGIE_LIBRARY_LAYER, MAGGIE_LIBRARY_LAYER_WIDTH, MAGGIE_LIBRARY_LAYER_HEIGHT)) {
+    SAGE_SetLayerTransparency(MAGGIE_LIBRARY_LAYER, GLOBAL_BLACK_TRANSPARENCY);
+    return FALSE;
+  }
+}
+
+void releaseAllLayers(void) {
+  int i;
+  
+  for (i=0; i<9; i++) {
+    SAGE_ReleaseLayer(i);
   }
 }
 
 void clearMainLayer(void) {
 	if (MAIN_LAYER != NULL) {
-		clearBackScreen(rgb888_to_rgb565(0,255,0));
+		clearBackScreen(rgb888_to_rgb565(0,0,0));
 	}
 }
 
-BOOL createDitheringLayer(void) {
-	if (SAGE_CreateLayer(DITHERING_LAYER, SCREEN_WIDTH, SCREEN_HEIGHT)) {
-    return TRUE;
+// Sprites
+
+BOOL createAllSprites(void) {
+  if (atlas_picture != NULL) {
+    SAGE_CreateSpriteBank(SPRITE_BANK, 5, atlas_picture);
+    SAGE_SetSpriteBankTransparency(SPRITE_BANK, GLOBAL_TRANSPARENCY);
+    
+    SAGE_AddSpriteToBank(
+      SPRITE_BANK,
+      RUNNING_ON_SPRITE,
+      ATLAS_RUNNING_ON_X,
+      ATLAS_RUNNING_ON_Y,
+      ATLAS_RUNNING_ON_WIDTH,
+      ATLAS_RUNNING_ON_HEIGHT,
+      SSPR_HS_MIDDLE);
+      
+    SAGE_AddSpriteToBank(
+      SPRITE_BANK,
+      POWERED_BY_SPRITE,
+      ATLAS_POWERED_BY_X,
+      ATLAS_POWERED_BY_Y,
+      ATLAS_POWERED_BY_WIDTH,
+      ATLAS_POWERED_BY_HEIGHT,
+      SSPR_HS_MIDDLE);
+    
+    SAGE_AddSpriteToBank(
+      SPRITE_BANK,
+      VAMPIRE_LOGO_SPRITE,
+      ATLAS_VAMPIRE_LOGO_X,
+      ATLAS_VAMPIRE_LOGO_Y,
+      ATLAS_VAMPIRE_LOGO_WIDTH,
+      ATLAS_VAMPIRE_LOGO_HEIGHT,
+      SSPR_HS_MIDDLE);
+    
+    SAGE_AddSpriteToBank(
+      SPRITE_BANK,
+      SAGE_SPRITE,
+      ATLAS_SAGE_X,
+      ATLAS_SAGE_Y,
+      ATLAS_SAGE_WIDTH,
+      ATLAS_SAGE_HEIGHT,
+      SSPR_HS_MIDDLE);
+    
+    SAGE_AddSpriteToBank(
+      SPRITE_BANK,
+      MAGGIE_LIBRARY_SPRITE,
+      ATLAS_MAGGIE_LIBRARY_X,
+      ATLAS_MAGGIE_LIBRARY_Y,
+      ATLAS_MAGGIE_LIBRARY_WIDTH,
+      ATLAS_MAGGIE_LIBRARY_HEIGHT,
+      SSPR_HS_MIDDLE);
+      
+    SAGE_DisplayError();
   }
 }
 
@@ -245,8 +389,17 @@ BOOL loadOrangesLogo(void) {
 }
 
 void showOrangesLogo(void) {
-	SAGE_BlitLayerToScreen(ORANGES_LAYER, 0, 0);
-	SAGE_RefreshScreen();
+  SAGE_BlitPictureToLayer(
+		oranges_logo_picture,
+	 	0,
+	 	0,
+	 	SCREEN_WIDTH,
+	 	SCREEN_HEIGHT,
+	 	MAIN_LAYER,
+	 	0,
+	 	0);
+
+	SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
 }
 
 // ATLAS
@@ -261,9 +414,9 @@ BOOL loadAtlas(void) {
   	return FALSE;
   }
     
-  if (SAGE_CreateLayerFromPicture(ATLAS_LAYER, atlas_picture)) {  
-  	return TRUE;
- 	}
+  //if (SAGE_CreateLayerFromPicture(ATLAS_LAYER, atlas_picture)) {  
+  //	return TRUE;
+ 	//}
   
   SAGE_DisplayError();
   return FALSE;
@@ -291,7 +444,7 @@ BOOL loadGridChess(void) {
 
 BOOL createTextfieldLayer(void) {
   if (SAGE_CreateLayer(TEXTFIELD_LAYER, TEXTFIELD_WIDTH, TEXTFIELD_HEIGHT)) {
-    SAGE_SetLayerTransparency(TEXTFIELD_LAYER, GLOBAL_TRANSPARENCY);
+    //SAGE_SetLayerTransparency(TEXTFIELD_LAYER, GLOBAL_BLACK_TRANSPARENCY);
     return TRUE;
   }
   SAGE_DisplayError();
@@ -348,81 +501,75 @@ BOOL loadMessage(void) {
   return FALSE;
 }
 
-// Blit helpers
+// Blit
 
-void atlasBlitRunningOn(void) {
-	SAGE_BlitPictureToBitmap(
+void atlasBlitRunningOn(int x_, int y_) {
+	SAGE_BlitPictureToLayer(
 		atlas_picture,
 	 	ATLAS_RUNNING_ON_X,
 	 	ATLAS_RUNNING_ON_Y,
 	 	ATLAS_RUNNING_ON_WIDTH,
 	 	ATLAS_RUNNING_ON_HEIGHT,
-	 	SAGE_GetBackBitmap(), //MAIN_LAYER
-	 	(SCREEN_WIDTH - ATLAS_RUNNING_ON_WIDTH) / 2,
-	 	24);
-
-	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
-	//SAGE_RefreshScreen();
+	 	RUNNING_ON_LAYER,
+	 	0,
+	 	0);
+  SAGE_BlitLayerToScreen(RUNNING_ON_LAYER, x_, y_);
 }
 
-void atlasBlitVampireLogo(int x_, int y_) {
-	SAGE_BlitPictureToBitmap(
-		atlas_picture,
-	 	ATLAS_VAMPIRE_LOGO_X,
-	 	ATLAS_VAMPIRE_LOGO_Y,
-	 	ATLAS_VAMPIRE_LOGO_WIDTH,
-	 	ATLAS_VAMPIRE_LOGO_HEIGHT,
-	 	SAGE_GetBackBitmap(), //MAIN_LAYER,
-	 	x_,
-	 	y_);
-	 	
-	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
-}
-
-void atlasBlitPoweredBy(void) {
-	SAGE_BlitPictureToBitmap(
+void atlasBlitPoweredBy(int x_, int y_) {
+	SAGE_BlitPictureToLayer(
 		atlas_picture,
 	 	ATLAS_POWERED_BY_X,
 	 	ATLAS_POWERED_BY_Y,
 	 	ATLAS_POWERED_BY_WIDTH,
 	 	ATLAS_POWERED_BY_HEIGHT,
-	 	SAGE_GetBackBitmap(), //MAIN_LAYER,
-	 	(SCREEN_WIDTH - ATLAS_POWERED_BY_WIDTH) / 2,
-	 	24);
-	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
-	//SAGE_RefreshScreen();
+	 	POWERED_BY_LAYER,
+	 	0,
+	 	0);
+  SAGE_BlitLayerToScreen(POWERED_BY_LAYER, x_, y_);
 }
 
-void atlasBlitSage(void) {
-	SAGE_BlitPictureToBitmap(
+void atlasBlitVampireLogo(int x_, int y_) {
+	SAGE_BlitPictureToLayer(
+		atlas_picture,
+	 	ATLAS_VAMPIRE_LOGO_X,
+	 	ATLAS_VAMPIRE_LOGO_Y,
+	 	ATLAS_VAMPIRE_LOGO_WIDTH,
+	 	ATLAS_VAMPIRE_LOGO_HEIGHT,
+	 	VAMPIRE_LAYER,
+	 	0,
+	 	0);
+	 	SAGE_SetLayerTransparency(VAMPIRE_LAYER, GLOBAL_BLACK_TRANSPARENCY);
+  SAGE_BlitLayerToScreen(VAMPIRE_LAYER, x_, y_);
+}
+
+void atlasBlitSage(int x_, int y_) {
+	SAGE_BlitPictureToLayer(
 		atlas_picture,
 	 	ATLAS_SAGE_X,
 	 	ATLAS_SAGE_Y,
 	 	ATLAS_SAGE_WIDTH,
 	 	ATLAS_SAGE_HEIGHT,
-	 	SAGE_GetBackBitmap(), //MAIN_LAYER,
-	 	(SCREEN_WIDTH - ATLAS_SAGE_WIDTH) / 2,
-	 	((SCREEN_HEIGHT - ATLAS_SAGE_HEIGHT) / 2) + 32);
-	 	
-	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
-	//SAGE_RefreshScreen();
+	 	SAGE_LAYER,
+	 	0,
+	 	0);
+  SAGE_BlitLayerToScreen(SAGE_LAYER, x_, y_);
+  SAGE_DisplayError();
 }
 
-void atlasBlitMaggieLibrary(void) {
-	SAGE_BlitPictureToBitmap(
+void atlasBlitMaggieLibrary(int x_, int y_) {
+	SAGE_BlitPictureToLayer(
 		atlas_picture,
 	 	ATLAS_MAGGIE_LIBRARY_X,
 	 	ATLAS_MAGGIE_LIBRARY_Y,
 	 	ATLAS_MAGGIE_LIBRARY_WIDTH,
 	 	ATLAS_MAGGIE_LIBRARY_HEIGHT,
-	 	SAGE_GetBackBitmap(), //MAIN_LAYER,
-	 	(SCREEN_WIDTH - ATLAS_MAGGIE_LIBRARY_WIDTH) / 2,
-	 	((SCREEN_HEIGHT - ATLAS_MAGGIE_LIBRARY_HEIGHT) / 2) + 32);
-	 	
-	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
-	//SAGE_RefreshScreen();
+	 	MAGGIE_LIBRARY_LAYER,
+	 	0,
+	 	0);
+	SAGE_BlitLayerToScreen(MAGGIE_LIBRARY_LAYER, x_, y_);
 }
-
+                          
 void atlasBlitGridChess(void) {
 	SAGE_BlitPictureToBitmap(
 		grid_chess_picture,
@@ -432,17 +579,208 @@ void atlasBlitGridChess(void) {
 	 	GRID_CHESS_HEIGHT,
 	 	SAGE_GetBackBitmap(),
 	 	0,
-	 	144);
+	 	142);
 	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
+}
+
+// Animate
+
+float Lerp(float start_value, float end_value, float pct) {
+  return (start_value + (end_value - start_value) * pct);
+}
+
+float Flip(float x) {
+  return 1 - x;
+}
+
+float QuadraticEaseIn(float t) {
+  return t * t;
+}
+
+float QuadraticEaseOut(float t) {
+  return -(t * (t - 2));
+}
+
+float EaseInElastic(float t) {
+  float c4 = (2 * M_PI) / 3;
+  return t == 0 
+  ? 0
+  : t == 1
+  ? 1
+  : -pow(2, 10 * t - 10) * sin((t * 10 - 10.5) * c4);
+}
+
+float EaseOutElastic(float t) {
+  float c4 = (2 * M_PI) / 3;
+  return t == 0 
+  ? 0
+  : t == 1
+  ? 1
+  : pow(2, -10 * t) * sin((t * 10 - 0.5) * c4) + 1;
+}
+
+float EaseInQuint(float t) {
+  return t * t * t * t * t;
+}
+
+float EaseOutQuint(float t) {
+  return 1 - pow(1 - t, 5);
+}
+
+void animateRunningOnIn(void) {
+  float time = 0;
+  float duration = 100;
+  int pointA = 0-ATLAS_RUNNING_ON_HEIGHT;
+  int pointB = 48;
+  int x_ = SCREEN_WIDTH / 2;
+  
+  while (time <= duration) {
+    SAGE_ClearScreen();
+    SAGE_BlitSpriteToScreen(
+      SPRITE_BANK,
+      RUNNING_ON_SPRITE,
+      x_,
+      Lerp(pointA, pointB, EaseOutElastic(time/duration)));
+      
+    SAGE_RefreshScreen();    
+    SAGE_Pause(1);
+    time += 1;
+  }
+}
+
+void animateRunningOnOut(void) {
+  float time = 0;
+  float duration = 100;
+  int pointA = 0-ATLAS_RUNNING_ON_HEIGHT;
+  int pointB = 48;
+  int x_ = SCREEN_WIDTH / 2;
+  
+  while (time <= duration) {
+    SAGE_ClearScreen();
+    SAGE_BlitSpriteToScreen(
+      SPRITE_BANK,
+      RUNNING_ON_SPRITE,
+      x_,
+      Lerp(pointB, pointA, EaseInElastic(time/duration)));
+
+    SAGE_RefreshScreen();    
+    SAGE_Pause(1);
+    time += 1;
+  }
+}
+
+void animatePoweredByIn(void) {
+  float time = 0;
+  float duration = 100;
+  int pointA = 0-ATLAS_POWERED_BY_HEIGHT;
+  int pointB = 48;
+  int x_ = SCREEN_WIDTH / 2;
+        
+  while (time <= duration) {
+    SAGE_ClearScreen();
+    SAGE_BlitSpriteToScreen(
+      SPRITE_BANK,
+      POWERED_BY_SPRITE,
+      x_,
+      Lerp(pointA, pointB, EaseOutElastic(time/duration)));
+      
+    SAGE_RefreshScreen();    
+    SAGE_Pause(1);
+    time += 1;
+  }
+}
+ 
+void animatePoweredByOut(void) {
+  float time = 0;
+  float duration = 100;
+  int pointA = 0-ATLAS_POWERED_BY_HEIGHT;
+  int pointB = 48;
+  int x_ = SCREEN_WIDTH / 2;
+
+  while (time <= duration) {
+    SAGE_ClearScreen();
+    SAGE_BlitSpriteToScreen(
+      SPRITE_BANK,
+      POWERED_BY_SPRITE,
+      x_,
+      Lerp(pointB, pointA, EaseInElastic(time/duration)));
+
+    SAGE_RefreshScreen();    
+    SAGE_Pause(1);
+    time += 1;
+  }
+}
+ 
+void animateVampireLogo(int x, int yA, int yB) {
+  float time = 0;
+  float duration = 80;
+  int pointA = yA;//SCREEN_HEIGHT+ATLAS_VAMPIRE_LOGO_HEIGHT;
+  int pointB = yB;//152;
+  int x_ = x;
+  
+  while (time <= duration) {
+    SAGE_BlitSpriteToScreen(
+      SPRITE_BANK,
+      VAMPIRE_LOGO_SPRITE,
+      x_,
+      (int)(Lerp(pointA, pointB, EaseOutQuint(time/duration))));
+    SAGE_RefreshScreen();    
+    SAGE_Pause(1);
+    time += 1;
+  }
+}
+
+void animateSage(void) {
+  float time = 0;
+  float duration = 80;
+  int pointA = SCREEN_HEIGHT+ATLAS_SAGE_HEIGHT;
+  int pointB = 160;
+  int x_ = SCREEN_WIDTH / 2;
+  
+  while (time <= duration) {
+    SAGE_ClearScreen();
+    atlasBlitPoweredBy((SCREEN_WIDTH-ATLAS_RUNNING_ON_WIDTH)/2, 16);
+    SAGE_BlitSpriteToScreen(
+      SPRITE_BANK,
+      SAGE_SPRITE,
+      x_,
+      Lerp(pointA, pointB, EaseOutQuint(time/duration)));
+      
+    SAGE_RefreshScreen();
+    SAGE_Pause(1);
+    time += 1;
+  }
+}
+
+void animateMaggieLibrary(void) {
+  float time = 0;
+  float duration = 80;
+  int pointA = SCREEN_HEIGHT+ATLAS_MAGGIE_LIBRARY_HEIGHT;
+  int pointB = 160;
+  int x_ = SCREEN_WIDTH / 2;
+  
+  while (time <= duration) {
+    SAGE_ClearScreen();
+    atlasBlitPoweredBy((SCREEN_WIDTH-ATLAS_RUNNING_ON_WIDTH)/2, 16);
+    SAGE_BlitSpriteToScreen(
+      SPRITE_BANK,
+      MAGGIE_LIBRARY_SPRITE,
+      x_,
+      Lerp(pointA, pointB, EaseOutQuint(time/duration)));
+      
+    SAGE_RefreshScreen();    
+    SAGE_Pause(1);
+    time += 1;
+  }
 }
 
 // FADE effect
 
-float fadeStatus = -0.1f;
+float fadeStatus = -0.1f, flashStatus = -0.1f;
 BOOL goingUp = TRUE;
 
-void FadeScreen(ULONG *srcBuffer,
-                ULONG *destBuffer,
+void FadeScreen(short *srcBuffer,
+                short *destBuffer,
                 int startX,
                 int startY,
                 int width,
@@ -453,24 +791,42 @@ void FadeScreen(ULONG *srcBuffer,
   // find the start position of the pixels to start the fade 
   int modulus = (screenWidth * startY) + startX;
   // get the fade value
-  ULONG iT = fadeValue * 256.0f;
-	ULONG nPixels = width *height;
+  ULONG iT = fadeValue * 255.0f;
+	ULONG nPixels = width * height;
     
-  for (i = 0; i < nPixels; ++i) {
+  for (i = 0; i < nPixels; i++) {
    	ULONG pixel = srcBuffer[i];
-    ULONG r = ((pixel & 0x00ff0000) * iT >> 8) & 0x00ff0000;
-    ULONG g = ((pixel & 0x0000ff00) * iT >> 8) & 0x0000ff00;
-    ULONG b = ((pixel & 0x000000ff) * iT >> 8) & 0x000000ff;
-    destBuffer[i] = r | g | b;
+    int r = ((int)((pixel & 0x00ff0000) * iT) >> 16) & 0x00ff0000;
+    int g = ((int)((pixel & 0x0000ff00) * iT) >> 8) & 0x0000ff00;
+    int b = ((int)((pixel & 0x000000ff) * iT)) & 0x000000ff;
+    destBuffer[i] = (short)rgb888_to_rgb565(r,g,b);
   }
 }
 
-void FadeInOut(float step) {
-  SAGE_Bitmap *back_bitmap = SAGE_GetBackBitmap();
-	
+void FadeInOut(float step, int indexLayer) {
+  SAGE_Bitmap *bitmap;
+  
+  switch (indexLayer) {
+    case -3:
+      bitmap = SAGE_GetWaitBitmap();
+    break;
+    
+    case -2:
+      bitmap = SAGE_GetBackBitmap();
+    break;
+    
+    case -1:
+      bitmap = SAGE_GetFrontBitmap();
+    break;
+    
+    default:
+      bitmap = SAGE_GetLayer(indexLayer)->bitmap;
+    break;
+  }
+  	
 	FadeScreen(
-  	back_bitmap->bitmap_buffer, 
-  	back_bitmap->bitmap_buffer,
+  	bitmap->bitmap_buffer, 
+  	bitmap->bitmap_buffer,
   	0,
   	0, 
   	SCREEN_WIDTH,
@@ -494,70 +850,318 @@ void FadeInOut(float step) {
 			goingUp = TRUE;
 		}
 	}
+}
 
-	printf("fadeStatus %f\n", fadeStatus);
+void Flash(short *srcBuffer,
+           short *destBuffer,
+           int width,
+           int height,
+           float flashValue) {
+  int i;
+  float iT = flashValue;
+	ULONG nPixels = width * height;
+  int r, g, b;
+  int nr, ng, nb;
+  
+  for (i = 0; i < nPixels; i++) {
+   	UWORD pixel = (UWORD)srcBuffer[i];
+    //printf("pixel %hu\n", pixel);
+    r = (pixel >> 11) & 31;
+    g = (pixel >> 5) & 63;
+    b = pixel & 31;
+    
+    //printf("r=%d\n",r);    
+    //printf("g=%d\n",g);    
+    //printf("b=%d\n",b);
+    
+    nr = (float)r*flashValue;
+    ng = (float)g*flashValue;
+    nb = (float)b*flashValue;
+
+//    printf("nr=%d\n",nr);    
+//    printf("ng=%d\n",ng);    
+//    printf("nb=%d\n",nb);    
+//    printf("======================\n\n");    
+    
+    destBuffer[i] = (short)rgb888_to_rgb565((int)nr, (int)ng, (int)nb);
+  }
+}
+
+void FlashIn(int indexLayer) {
+  SAGE_Bitmap *bitmap, *front;
+  float step = 1.0f;
+  front = SAGE_GetFrontBitmap();
+  
+  switch (indexLayer) {
+    case -3:
+      bitmap = SAGE_GetWaitBitmap();
+    break;
+    
+    case -2:
+      bitmap = SAGE_GetBackBitmap();
+    break;
+    
+    case -1:
+      bitmap = SAGE_GetFrontBitmap();
+    break;
+    
+    default:
+      bitmap = SAGE_GetLayer(indexLayer)->bitmap;
+    break;
+  }
+
+  while (step >= -0.01f) {
+    if (SAGE_IsFrontMostScreen) {
+      //SAGE_WaitVbl();
+      //printf("step=%f\n--------------\n", step);  
+      //clearBackScreen(rgb888_to_rgb565(0,0,0));
+      //SAGE_RefreshScreen();
+      //SAGE_ClearScreen();
+      //fillArea(0, 0, 120, 120, rgb888_to_rgb565(255, 0, 0));
+      showOrangesLogo();
+      //SAGE_BlitPictureToScreen(oranges_logo_picture, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+      
+      Flash(
+      	bitmap->bitmap_buffer, 
+      	front->bitmap_buffer,
+      	SCREEN_WIDTH,
+      	SCREEN_HEIGHT,
+      	step);
+  	
+      step -= 0.01f;
+
+    	//SAGE_RefreshScreen();
+    	
+      SAGE_Pause(1);      
+    }
+  }
 }
 
 // choose blit width and height as 16 or 32 to match the dither mask sequence
-void ditheringTransition(int startX, int startY, int blitWidth, int blitHeight, int lines, int columns) {
+void ditheringTransition(int startX,
+                         int startY,
+                         int blitWidth,
+                         int blitHeight,
+                         int lines,
+                         int columns,
+                         enum ditherTransitionSpeed speed,
+                         int layerIndex,
+                         int layerX,
+                         int layerY,
+                         enum ditherTransitionType type,
+                         enum ditherTransitionFlow flow,
+                         int extra) {
   int i, x=10, line, column, ditherXPosition, trackXposition = 0;
 
+  // the X position is related to the 4 columns of dither animation mask effect in the atlas picture
   if (blitWidth == 32) {
-    ditherXPosition = ATLAS_WIDTH-32;
+    if (fast) {
+      ditherXPosition = ATLAS_WIDTH - 32;
+    }
+    else {
+      ditherXPosition = ATLAS_WIDTH - 80;
+    }
   }
   if (blitWidth == 16) {
-    ditherXPosition = ATLAS_WIDTH-48;
+    if (fast) {
+      ditherXPosition = ATLAS_WIDTH - 48;
+    }
+    else {
+      ditherXPosition = ATLAS_WIDTH - 96;
+    }
   }
   
-  SAGE_BlitPictureToLayer(
-       oranges_logo_picture, 
-       0,
-       0,
-       ORANGES_WIDTH,
-       ORANGES_HEIGHT,
-       DITHERING_LAYER,
-       0,
-       0);
-       
-  SAGE_BlitLayerToScreen(DITHERING_LAYER, 0, 0);
-  SAGE_RefreshScreen(); 
-	SAGE_Pause(50);
-	
-	for (line = 0; line < lines; line++) {
-  	printf("line: %d\n", line);
-
-    for (column = 0; column < columns; column++) {
-      printf("column: %d\n", column);
+  // things comes
+  if (flow == in) {
+    if (type == fullLine) {  
+      x = 0; 
       
-      // make a worm style effect
-    	if (line%2 == 0) {
-      	printf("in > direction\n");
-      	trackXposition = startX+(column*blitWidth);
-    	}
-    	else {
-      	printf("in < direction\n");
-      	trackXposition = (startX + ((columns - 1) * blitWidth)) - (column * blitWidth);
-    	}
-  	
-      while (x>=0) {
-        SAGE_BlitPictureToLayer(
-           atlas_picture,
-           ditherXPosition,
-           blitHeight*x,
-           blitWidth,
-           blitHeight,
-           DITHERING_LAYER,
-           trackXposition,
-           startY+(line*blitHeight));
-           
-        SAGE_BlitLayerToScreen(DITHERING_LAYER, 0, 0);
-        SAGE_RefreshScreen(); 
-        SAGE_Pause(1);
+      while (x<10) {
+        // recreate the layer without the previous blit
+        // for now we set it to static connected to the chess grid
+        // TODO: make this dynamic to recreate from a param any layer from any picture
+        SAGE_CreateLayerFromPicture(GRID_CHESS_LAYER, grid_chess_picture);
         
-        x-=1;
+        SAGE_ClearScreen();
+        
+        // start the dithering filter animation
+      	for (line = 0; line < lines; line++) {
+          for (column = 0; column < columns; column++) {
+            trackXposition = startX + (column * blitWidth);
+            
+          	SAGE_BlitPictureToLayer(
+                 atlas_picture, // dither filter animation is in atlas picture
+                 ditherXPosition,
+                 blitHeight * x,
+                 blitWidth,
+                 blitHeight,
+                 layerIndex,
+                 trackXposition,
+                 startY + (line * blitHeight));
+          }
+        }
+        
+        SAGE_BlitLayerToScreen(layerIndex, layerX, layerY);
+            
+        SAGE_RefreshScreen(); 
+        SAGE_Pause(3);
+        
+        if (speed == normal) {
+          x += 2;   
+        }
+        else {
+          x += 1;
+        }
       }
-      
-      x = 10;
+    }
+  }
+  
+  // things goes
+  if (flow == out) {
+    if (type == worm) { 
+      // start the dithering filter animation
+    	for (line = 0; line < lines; line++) {
+        for (column = 0; column < columns; column++) {
+          // make a worm style effect
+        	if (line%2 == 0) {
+          	trackXposition = startX + (column * blitWidth);
+        	}
+        	else {
+          	trackXposition = (startX + ((columns - 1) * blitWidth)) - (column * blitWidth);
+        	}
+      	
+          while (x>=0) {
+            SAGE_ClearScreen();
+            
+            // blit "Running on" or "Powered by"
+            if (extra != 0) {
+              if (extra == -999) {
+                atlasBlitRunningOn((SCREEN_WIDTH - RUNNING_ON_LAYER_WIDTH) / 2, 16);
+              }
+              if (extra == -998) {
+                atlasBlitPoweredBy((SCREEN_WIDTH - POWERED_BY_LAYER_WIDTH) / 2, 16);
+              }    
+            }
+            
+            SAGE_BlitPictureToLayer(
+               atlas_picture, // dither filter animation is in atlas picture
+               ditherXPosition,
+               blitHeight * x,
+               blitWidth,
+               blitHeight,
+               layerIndex,
+               trackXposition,
+               startY + (line * blitHeight));
+               
+            SAGE_BlitLayerToScreen(layerIndex, layerX, layerY);
+            
+            SAGE_RefreshScreen(); 
+            SAGE_Pause(1);
+            
+            x-=2;
+          }
+          
+          if (speed == normal) {
+            x = 5;   
+          }
+          else {
+            x = 10;
+          }
+        }
+      }
+    }
+    
+    if (type == fullLine) {   
+      // start the dithering filter animation
+    	for (line = 0; line < lines; line++) {  
+        while (x>=0) {
+          SAGE_ClearScreen();
+          
+          // blit "Running on" or "Powered by"
+          if (extra != 0) {
+            if (extra == -999) {
+              atlasBlitRunningOn((SCREEN_WIDTH - RUNNING_ON_LAYER_WIDTH) / 2, 16);
+            }
+            if (extra == -998) {
+              atlasBlitPoweredBy((SCREEN_WIDTH - POWERED_BY_LAYER_WIDTH) / 2, 16);
+            }    
+          }
+          
+          for (column = 0; column < columns; column++) {
+            trackXposition = startX + (column * blitWidth);
+            
+          	SAGE_BlitPictureToLayer(
+                 atlas_picture, // dither filter animation is in atlas picture
+                 ditherXPosition,
+                 blitHeight * x,
+                 blitWidth,
+                 blitHeight,
+                 layerIndex,
+                 trackXposition,
+                 startY + (line * blitHeight));
+          }
+          
+          SAGE_BlitLayerToScreen(layerIndex, layerX, layerY);
+            
+          SAGE_RefreshScreen(); 
+          SAGE_Pause(1);
+          
+          x-=1;
+        }
+        
+        if (speed == normal) {
+          x = 5;   
+        }
+        else {
+          x = 10;
+        }
+      }
+    }
+    
+    if (type == fullColumn) {
+      for (column = 0; column < columns; column++) {
+        while (x>=0) {
+          SAGE_ClearScreen();
+          
+          // blit "Running on" or "Powered by"
+          if (extra != 0) {
+            if (extra == -999) {
+              atlasBlitRunningOn((SCREEN_WIDTH - RUNNING_ON_LAYER_WIDTH) / 2, 16);
+            }
+            if (extra == -998) {
+              atlasBlitPoweredBy((SCREEN_WIDTH - POWERED_BY_LAYER_WIDTH) / 2, 16);
+            }    
+          }        
+         
+          for (line = 0; line < lines; line++) {
+            trackXposition = startX + (column * blitWidth);
+        	
+          	SAGE_BlitPictureToLayer(
+                 atlas_picture, // dither filter animation is in atlas picture
+                 ditherXPosition,
+                 blitHeight * x,
+                 blitWidth,
+                 blitHeight,
+                 layerIndex,
+                 trackXposition,
+                 startY + (line * blitHeight));
+          }
+          
+          SAGE_BlitLayerToScreen(layerIndex, layerX, layerY);
+            
+          SAGE_RefreshScreen(); 
+          SAGE_Pause(1);
+          
+          x-=1;
+        }
+  
+        if (speed == normal) {
+          x = 5;   
+        }
+        else {
+          x = 10;
+        }
+      }
     }
   }
 }
@@ -647,9 +1251,9 @@ BOOL initCurve(void) {
 
   angle = 180.0;
   amplitude = 16;
-  printf("amplitude %u\n", amplitude);
+  
   for (i = 0;i < CURVE_SCROLL;i++) {
-    curve[i] = (int)amplitude + (sin(RAD(angle)) * amplitude);
+    curve[i] = (int)(amplitude + (sin(RAD(angle)) * amplitude));
     angle += (360.0 / CURVE_SCROLL);
   }
   return TRUE;
@@ -959,90 +1563,21 @@ void update3DBalls(void) {
  	//mat4_translate(&viewMatrix, cameraPosition.x, cameraPosition.y, cameraPosition.z);
 }
 
-void updateScrolltext_new(void) {
-  UBYTE new_char;
-  UWORD char_index;
-  int i, x, y, posY = 0, blitSize = 20, startY = 0;
-  
-  // for loop to clear the text field layer before blitting again
-  /*for (y=0; y<3; y++) {
-    for (x=0; x<16; x++) {
-     SAGE_BlitPictureToLayer(
-       atlas_picture,
-       ATLAS_WIDTH - blitSize,
-       0,
-       blitSize,
-       blitSize,
-       TEXTFIELD_LAYER,
-       blitSize * x,
-       blitSize * y);
-    }
-  }*/
-  
-  char_posx = 0;
-  
-  // cycle through all the letters
-  // Should we load a new char from the message
-  for (i=0; i<10; i++) {
-    new_char = message[i];
-    
-    if (new_char < ' ') {
-      char_index = 0;
-    }
-    else {
-    	// "Space" is our first char in the font picture
-      char_index = new_char - ' ';
-      // If we have some chars that are not in our fonts
-      if (char_index >= FONT_NUM) {
-        char_index = 0;
-      }
-    }
-    
-    // blit the char to the layer
-    SAGE_BlitPictureToLayer(
-    	font_picture,
-     	font_posx[char_index],
-     	font_posy[char_index],
-     	FONT_WIDTH,
-     	FONT_HEIGHT,
-     	TEXTFIELD_LAYER,
-     	char_posx,
-     	curve[curve_idx]);
-     printf("%f\n", curve[curve_idx]);
-    // update X position for the next character
-    char_posx += FONT_WIDTH;
-    
-    // update Y position for the next character
-    curve_idx++;// += FONT_WIDTH;
-    // this is for resetting the position to return to 0
-    curve_idx %= CURVE_SCROLL;
-  }
-  
-  //char_load -= TEXTSCROLL_SPEED;
-  //layer_posx += TEXTSCROLL_SPEED;
-  
-  //if (layer_posx >= (SCREEN_WIDTH + FONT_WIDTH)) {
-  //  layer_posx = 0;
-  //}
-  layer_posx = 320;    
-  // Y position of the text
-  // Move the scroll up and down
-  scroll_posy = 190;//204 + curve[curve_idx++];
-}
-
-void updateScrolltext_old(void) {
+void updateScrolltext(void) {
   UBYTE new_char;
   UWORD char_index;
   
   // Should we load a new char from the message
-  if (char_load == 0) {
+  if (char_load == 0 && !isFinishSection1) {
     new_char = message[message_pos];
     
     // have we reach the end of the message?
+    // let's call it a close for section1 and move to the next section
     if (new_char == 0) {
+      isFinishSection1 = TRUE;
       // wrap the message;
-      message_pos = 0;
-      new_char = message[message_pos];
+      //message_pos = 0;
+      //new_char = message[message_pos];
     }
     
     char_load = FONT_WIDTH;
@@ -1072,7 +1607,8 @@ void updateScrolltext_old(void) {
      	TEXTFIELD_LAYER,
      	char_posx,
      	0);
-     	
+    
+    
     char_posx += FONT_WIDTH;
     
     if (char_posx > SCREEN_WIDTH) {
@@ -1096,7 +1632,7 @@ void updateScrolltext_old(void) {
 void update(void) {
   updateKeyboardKeysListener();
   update3DBalls();
-  updateScrolltext_old();
+  updateScrolltext();
 }
 
 void render(void) {
@@ -1112,8 +1648,13 @@ void render(void) {
 
 	// blit the logo and the chess grid
 	atlasBlitGridChess();
-	atlasBlitVampireLogo((int)((SCREEN_WIDTH - ATLAS_VAMPIRE_LOGO_WIDTH) / 2), -15);
-			
+	atlasBlitVampireLogo((int)((SCREEN_WIDTH - ATLAS_VAMPIRE_LOGO_WIDTH) / 2), -17);
+	
+	// Set the text layer view (using the wrapping feature of layers to simulate infinite scroll)
+  SAGE_SetLayerView(TEXTFIELD_LAYER, layer_posx, layer_posy, SCREEN_WIDTH, TEXTFIELD_HEIGHT);
+  // Blit the text layer to the screen
+  SAGE_BlitLayerToScreen(TEXTFIELD_LAYER, TEXTSCROLL_POSX, scroll_posy);
+  
 	// Maggie render
 
 	// --> Maggie start block
@@ -1210,12 +1751,7 @@ void render(void) {
 	// <-- Maggie end block
   magEndScene();
   
-	// Set the text layer view (using the wrapping feature of layers to simulate infinite scroll)
-  SAGE_SetLayerView(TEXTFIELD_LAYER, layer_posx, layer_posy, SCREEN_WIDTH, TEXTFIELD_HEIGHT);
-  // Blit the text layer to the screen
-  SAGE_BlitLayerToScreen(TEXTFIELD_LAYER, TEXTSCROLL_POSX, scroll_posy);
- 
- 	visualDebug();
+ 	//visualDebug();
  	
   // Switch screen buffers
   SAGE_RefreshScreen();
@@ -1225,6 +1761,8 @@ void restore(void) {
 	if (MaggieBase != NULL) {
     CloseLibrary(MaggieBase);
   }
+  
+  releaseAllLayers();
   
   magFreeTexture(txtr);
   magFreeVertexBuffer(vBuffer);
@@ -1242,7 +1780,7 @@ void restore(void) {
 void main(int argc, char* argv[]) {
   // generate random X position for each ball and also random intial Y position
   int i, x = ballYPositionsTotal;
-  float rand, startXPosition = 50.0;
+  float rand, startXPosition = 40.0;
   float* randomFloatArray;
   
   srand((unsigned int)time(NULL));
@@ -1368,77 +1906,115 @@ void main(int argc, char* argv[]) {
         SAGE_ErrorLog("Can't activate frame rate counter !\n");
       }
 			
-			// create main layers aka pixel buffers
-      createMainLayer();
+			loadAtlas();
+				
+  		// create main layers aka pixel buffers
+      createAllLayers();
+      createAllSprites();
   		createTextfieldLayer();
-  			
+  		
   		// load all the assets
-  		loadOrangesLogo();
-  		loadAtlas();
   		loadGridChess();
   		loadFont();
   		loadMessage();
-		
+  		
+  		SAGE_Pause(100);
+      
   		// start playing the music
-  		//SAGE_PlayMusic(MUSIC_SLOT);
-			
-			// show Oranges logo
-			//showOrangesLogo();
-			createDitheringLayer();
-			ditheringTransition(32, 32, 16, 16, 5, 7);
-      		
-			//SAGE_Pause(50*3);
-			
-			// NB: instead of recreating the layer, let's find out how to fill the layer with a single color
-			//clearMainLayer();
-      //SAGE_RefreshScreen();
-      
-			// show "powered on" + Vampire pixel art logo
-			/*atlasBlitRunningOn();
-			SAGE_RefreshScreen();
-			SAGE_Pause(50*3);
-			
-			atlasBlitRunningOn();
-			atlasBlitVampireLogo(
-  			(SCREEN_WIDTH - ATLAS_VAMPIRE_LOGO_WIDTH) / 2, 
-  			((SCREEN_HEIGHT - ATLAS_VAMPIRE_LOGO_HEIGHT) / 2) + 32
-  		);
-			SAGE_RefreshScreen();
-			SAGE_Pause(50*3);
-			
-			clearMainLayer();
-			SAGE_RefreshScreen();
-			SAGE_Pause(50*1);
-			
-			// show "powered by" Sage
-			atlasBlitPoweredBy();
-			SAGE_RefreshScreen();
-			SAGE_Pause(50*2);
-			atlasBlitPoweredBy();
-			atlasBlitSage();
-			SAGE_RefreshScreen();
-			SAGE_Pause(50*3);
+  		SAGE_PlayMusic(MUSIC_SLOT);
 
-			// show "powered by" Maggie
-			atlasBlitPoweredBy();
-			SAGE_RefreshScreen();
-			SAGE_Pause(50*2);
-			atlasBlitPoweredBy();
-			atlasBlitMaggieLibrary();
-			SAGE_RefreshScreen();
-			SAGE_Pause(50*3);
-			
-			// 
-			clearMainLayer();
-			SAGE_RefreshScreen();
+			// intro section 1
+			animateRunningOnIn();
+      animateVampireLogo(SCREEN_WIDTH/2, SCREEN_HEIGHT+ATLAS_VAMPIRE_LOGO_HEIGHT, 152);			
       
-			// main loop to render the screen
+      SAGE_Pause(100);
+      
+      atlasBlitVampireLogo(0, 0);
+      ditheringTransition(0,
+                          0,
+                          16,
+                          16,
+                          ATLAS_VAMPIRE_LOGO_HEIGHT/16,
+                          ATLAS_VAMPIRE_LOGO_WIDTH/16,
+                          normal,
+                          VAMPIRE_LAYER,
+                          (SCREEN_WIDTH - ATLAS_VAMPIRE_LOGO_WIDTH) / 2,
+                          (SCREEN_HEIGHT - ATLAS_VAMPIRE_LOGO_HEIGHT) / 2 + 24,
+                          fullLine,
+                          out,
+                          -999);
+
+      animateRunningOnOut();
+      
+      // intro section 2.a                         
+      animatePoweredByIn();
+      animateSage();
+
+      SAGE_Pause(100);
+      
+      atlasBlitSage(0, 0);
+      ditheringTransition(0,
+                          0,
+                          16,
+                          16,
+                          ATLAS_SAGE_HEIGHT/16,
+                          ATLAS_SAGE_WIDTH/16,
+                          normal,
+                          SAGE_LAYER,
+                          (SCREEN_WIDTH - ATLAS_SAGE_WIDTH) / 2,
+                          (SCREEN_HEIGHT - ATLAS_SAGE_HEIGHT) / 2 + 32,
+                          fullColumn,
+                          out,
+                          -998);
+                          
+      // intro section 2.b
+      animateMaggieLibrary();
+      
+      SAGE_Pause(100);
+      
+      atlasBlitMaggieLibrary(0, 0);
+      ditheringTransition(0,
+                          0,
+                          32,
+                             32,
+                          ATLAS_MAGGIE_LIBRARY_HEIGHT/32,
+                          ATLAS_MAGGIE_LIBRARY_WIDTH/32,
+                          normal,
+                          MAGGIE_LIBRARY_LAYER,
+                          (SCREEN_WIDTH - ATLAS_MAGGIE_LIBRARY_WIDTH) / 2,
+                          (SCREEN_HEIGHT - ATLAS_MAGGIE_LIBRARY_HEIGHT) / 2 + 32,
+                          worm,
+                          out
+                          -998);
+      
+      animatePoweredByOut();
+      
+      // fade in chess grid
+      ditheringTransition(0,
+                          0,
+                          16,
+                          16,
+                          GRID_CHESS_LAYER_HEIGHT/16,
+                          GRID_CHESS_LAYER_WIDTH/16,
+                          slow,
+                          GRID_CHESS_LAYER,
+                          (SCREEN_WIDTH - GRID_CHESS_WIDTH) / 2,
+                          (SCREEN_HEIGHT - GRID_CHESS_HEIGHT) / 2 + 46,
+                          fullLine,
+                          in,
+                          0);
+                          
+      // show vampirelogo at the top                   
+      animateVampireLogo(SCREEN_WIDTH / 2,
+                         -47,
+                         47);
+      
+      // 3D section 1.a
 			while (!finish) {
-				//update();	
-				updateKeyboardKeysListener();
-				//render();
+				update();
+				render();
 			}
-      */
+      
 			// free memory
 			restore();
 			
