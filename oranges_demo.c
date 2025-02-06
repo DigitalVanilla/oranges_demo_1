@@ -12,8 +12,11 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <sys/time.h>
 #include <dos/dos.h>
 #include <clib/dos_protos.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <sage/sage.h>
 
@@ -104,8 +107,6 @@
 #define MAGGIE_LIBRARY_LAYER_WIDTH 			ATLAS_MAGGIE_LIBRARY_WIDTH
 #define MAGGIE_LIBRARY_LAYER_HEIGHT			ATLAS_MAGGIE_LIBRARY_HEIGHT
 
-#define	TRANSITION_LAYER		    10
-
 // Sprites
 
 #define SPRITE_BANK             0                           
@@ -117,7 +118,7 @@
 
 // FONT
 
-#define FONT_FILENAME					"assets/font_16x20.png"
+#define FONT_FILENAME			    "assets/font_16x20.png"
 #define FONT_WIDTH            16
 #define FONT_HEIGHT           20
 #define FONT_NUM              60
@@ -131,7 +132,20 @@
 #define TEXTSCROLL_SPEED     	2
 #define TEXTSCROLL_POSX       0
 
-SAGE_Music *music = NULL;
+#define FONT_DOT_FILENAME			"assets/font_16x20.png" //"assets/font_dot_16x16.png"
+#define FONT_DOT_WIDTH        8
+#define FONT_DOT_HEIGHT       8
+#define FONT_DOT_NUM          60
+#define FONTPIC_DOT_WIDTH     160
+#define FONTPIC_DOT_HEIGHT    120
+
+#define DOT_TORUS_WIDTH       SCREEN_WIDTH
+#define DOT_TORUS_HEIGHT      SCREEN_HEIGHT
+#define DOT_TORUS_LAYER       10
+
+// TRANSITION Layer 1st > 2nd 3D section
+
+#define	TRANSITION_LAYER		  11
   
 // TEXT MESSAGE
 
@@ -144,7 +158,8 @@ UWORD curve_idx = 0;
 
 // MUSIC
 
-#define MUSIC_SLOT            10
+SAGE_Music *music = NULL;
+#define MUSIC_SLOT 10
 char *filename_music = "assets/funky_colors_fusion.mod";
 
 // ENUMS
@@ -157,20 +172,24 @@ enum ditherTransitionSpeed { slow, normal, fast };
 
 // GLOBAL VARIABLES
 
+BOOL mainFinish       = FALSE;
 BOOL finish3DSection1 = FALSE;
 BOOL isFinishSection1 = FALSE;
+BOOL finish3DSection2 = FALSE;
 BOOL isFinishSection2 = FALSE;
+BOOL finish3DSection3 = FALSE;
 BOOL isFinishSection3 = FALSE;
 BOOL startTransitionToSection2 = FALSE;
 BOOL calledVampireLogoOutro = FALSE;
 BOOL calledGridChessOutro = FALSE;
 BOOL calledBallsOutro = FALSE;
 
-SAGE_Picture *atlas_picture, *oranges_logo_picture, *grid_chess_picture, *font_picture;
+SAGE_Picture *atlas_picture, *oranges_logo_picture, *grid_chess_picture, *font_picture, *font_dot_picture;
 
 STRPTR message = NULL;
-UWORD message_pos = 0, font_posx[FONT_NUM], font_posy[FONT_NUM];
+UWORD message_pos = 0, message_dot_pos = 0, font_posx[FONT_NUM], font_posy[FONT_NUM], font_dot_posx[FONT_DOT_NUM], font_dot_posy[FONT_DOT_NUM];
 UWORD char_posx = SCREEN_WIDTH, char_load = 0;
+UWORD char_dot_posx = 0, char_dot_load = 0;
 UWORD layer_posx = SCREEN_WIDTH+FONT_WIDTH, layer_posy = 0, scroll_posy = 0;
 
 // GENERIC HELPERS
@@ -202,9 +221,7 @@ int rgb888_to_rgb565(int red8, int green8, int blue8) {
   int green6_shifted = green6 << 5;
   
   int rgb565 = red5_shifted | green6_shifted | blue5;
-//printf("r8=%d\n", red8);
-//printf("g8=%d\n", green8);
-//printf("b8=%d\n", blue8); 
+  
   return rgb565;
 }
 
@@ -323,12 +340,23 @@ BOOL createAllLayers(void) {
   if (!SAGE_CreateLayer(TRANSITION_LAYER, SCREEN_WIDTH, SCREEN_HEIGHT)) {
     return FALSE;
   }
+  
+  if (!SAGE_CreateLayer(TEXTFIELD_LAYER, TEXTFIELD_WIDTH, TEXTFIELD_HEIGHT)) {
+    return FALSE;
+  }
+  
+  if (!SAGE_CreateLayer(DOT_TORUS_LAYER, DOT_TORUS_WIDTH, DOT_TORUS_HEIGHT)) {
+    return FALSE;
+  }
+  
+  SAGE_DisplayError();
+  return TRUE;
 }
 
 void releaseAllLayers(void) {
   int i;
   
-  for (i=0; i<10; i++) {
+  for (i=0; i<11; i++) {
     SAGE_ReleaseLayer(i);
   }
 }
@@ -436,10 +464,6 @@ BOOL loadAtlas(void) {
   	SAGE_DisplayError();
   	return FALSE;
   }
-    
-  //if (SAGE_CreateLayerFromPicture(ATLAS_LAYER, atlas_picture)) {  
-  //	return TRUE;
- 	//}
   
   SAGE_DisplayError();
   return FALSE;
@@ -465,15 +489,6 @@ BOOL loadGridChess(void) {
 
 // FONT
 
-BOOL createTextfieldLayer(void) {
-  if (SAGE_CreateLayer(TEXTFIELD_LAYER, TEXTFIELD_WIDTH, TEXTFIELD_HEIGHT)) {
-    //SAGE_SetLayerTransparency(TEXTFIELD_LAYER, GLOBAL_BLACK_TRANSPARENCY);
-    return TRUE;
-  }
-  SAGE_DisplayError();
-  return FALSE;
-}
-
 BOOL loadFont(void) {
   UWORD x, y, idx, line, column;
 
@@ -492,6 +507,32 @@ BOOL loadFont(void) {
         idx++;
       }
       y += FONT_HEIGHT;
+    }
+    return TRUE;
+  }
+  
+  SAGE_DisplayError();
+  return FALSE;
+}
+
+BOOL loadDotFont(void) {
+  UWORD x, y, idx, line, column;
+
+	font_dot_picture = SAGE_LoadPicture(FONT_DOT_FILENAME);
+	
+  if (font_dot_picture != NULL) {
+    idx = 0;
+    y = 0;
+
+    for (line = 0; line < (FONTPIC_DOT_HEIGHT / FONT_DOT_HEIGHT); line++) {
+      x = 0;
+      for (column = 0;column < (FONTPIC_DOT_WIDTH / FONT_DOT_WIDTH); column++) {
+        font_dot_posx[idx] = x;
+        font_dot_posy[idx] = y;
+        x += FONT_DOT_WIDTH;
+        idx++;
+      }
+      y += FONT_DOT_HEIGHT;
     }
     return TRUE;
   }
@@ -1575,7 +1616,6 @@ void visualDebug(void) {
   SAGE_PrintFText(10, 10, "%d fps", SAGE_GetFps());
 }
 
-
 void updateKeyboardKeysListener(void) {
   SAGE_Event *event = NULL;
   
@@ -1583,11 +1623,13 @@ void updateKeyboardKeysListener(void) {
 	while ((event = SAGE_GetEvent()) != NULL) {
 		// If we click on mouse button, we stop the loop
   	if (event->type == SEVT_MOUSEBT) {
-   		finish3DSection1 = TRUE;
+   		mainFinish = TRUE;
+   		//finish3DSection2 = TRUE;
   	}
   	// If we press the ESC key, we stop the loop
 		else if (event->type == SEVT_RAWKEY && event->code == SKEY_EN_ESC) {
-   		finish3DSection1 = TRUE;
+   		mainFinish = TRUE;
+   		//finish3DSection2 = TRUE;
    	}
   }
 }
@@ -1633,12 +1675,13 @@ void updateScrolltext(void) {
     // have we reach the end of the message?
     // let's call it a close for section1 and move to the next section
     if (new_char == 0) {
-      //isFinishSection1 = TRUE;
-      startTransitionToSection2 = TRUE;
-      calledVampireLogoOutro = TRUE;
-      // wrap the message;
-      //message_pos = 0;
-      //new_char = message[message_pos];
+      // this starts the transition to middle section between section 1 and 2
+      //startTransitionToSection2 = TRUE;
+      //calledVampireLogoOutro = TRUE;
+      
+      // wrap the message and make the loop
+      message_pos = 0;
+      new_char = message[message_pos];
     }
     
     char_load = FONT_WIDTH;
@@ -1691,7 +1734,7 @@ void updateScrolltext(void) {
 }
 
 void updateSection1(void) {
-  updateKeyboardKeysListener();
+  //updateKeyboardKeysListener();
   update3DBalls();
   
   if (!startTransitionToSection2) {
@@ -1958,6 +2001,151 @@ void transitionTo3DSection2(int fillWidth,
   }
 }
 
+// 3D DOT DONUT
+
+int* R(int mul, int shift, int x, int y) {
+  int originalX = x;
+  int originalY = y;
+  int tmpX = x;
+  int* r = (int*)malloc(2 * sizeof(int));
+
+  originalX -= mul * originalY >> shift;
+  originalY += mul * tmpX >> shift;
+  
+  tmpX = 3145728 - originalX * originalX - originalY * originalY >> 11;
+  
+  originalX = originalX * tmpX >> 10;
+  originalY = originalY * tmpX >> 10;
+  
+  r[0] = originalX;
+  r[1] = originalY;
+  
+  return r;
+}
+
+void printTime() {
+  struct timeval tmnow;
+  struct tm *tm;
+  char buf[30], usec_buf[16];
+}
+
+int8_t b[1760], z[1760];
+int sA=1024, cA=0, sB=1024, cB=0;
+
+void render3DDotDonut_lite() {  
+  int sj=0, cj=1024;
+  int j=0, si=0, ci=1024, i=0, R1=1, R2=2048, K2=5120*1024, k=0;
+  int x0, x1, x2, x3, x4, x5,x6, x7, x, y, N;
+  int o, zz;
+  int copyCI, copyCJ, copyCA, copyCB;
+  int* r1;
+  int* r2;
+  int* r3;
+  int* r4;
+  UBYTE new_dot_char;
+  UWORD char_dot_index;
+  int divColumns = SCREEN_WIDTH / FONT_DOT_WIDTH;
+  int divRows = SCREEN_HEIGHT / FONT_DOT_HEIGHT;
+ 
+  // default b=32, z=127
+  memset(b, 32, 1760);
+  memset(z, 127, 1760);
+  printTime();
+  //default j<90, i<324
+  for (j=0; j<90; j++) {
+   for (i=0; i<324; i++) {
+      x0 = R1*cj+R2;
+      x1 = ci*x0>>10;
+      x2 = cA*sj>>10;
+      x3 = si*x0>>10;
+      x4 = R1*x2 - (sA*x3>>10);
+      x5 = sA*sj>>10,
+      x6 = K2+R1*1024*x5+cA*x3;
+      x7 = cj*si>>10;
+      x = 40+30*(cB*x1-sB*x4)/x6;
+      y = 12+15*(cB*x4+sB*x1)/x6;
+      N = (-cA*x7-cB*((-sA*x7>>10)+x2)-ci*(cj*sB>>10)>>10)-x5>>7;
+      
+      o = x+80*y;
+      zz = (x6-K2)>>15;
+      
+      if (22>y && y>0 && x>0 && 80 > x && zz<z[o]) {
+        z[o] = zz;
+        b[o] = ".,-~:;=!*#$@"[N>0 ? N : 0]; //" .:-=+*#"[N>0 ? N : 0];
+      }
+      
+      // rotate i
+      r1 = R(5, 8, ci, si);
+      ci = r1[0];
+      si = r1[1]; 
+    }
+    
+    // rotate j
+    r2 = R(9, 7, cj, sj);
+    cj = r2[0];
+    sj = r2[1];
+  }
+
+  r3 = R(5, 7, cA, sA);
+  cA = r3[0];
+  sA = r3[1];
+  R(5, 7, &cA, &sA);
+  
+  r4 = R(5, 8, cB, sB);
+  cB = r4[0];
+  sB = r4[1];
+  R(5, 8, &cB, &sB);
+  printTime();
+  return;
+  // render the dot donut
+  fillAreaLayer(DOT_TORUS_LAYER,
+              	0,
+              	0,
+              	DOT_TORUS_WIDTH,
+              	DOT_TORUS_HEIGHT,
+              	rgb888_to_rgb565(255, 255, 255));
+
+  for (y = 0; y < divRows; y++) {
+    for (x = 0; x < divColumns; x++) {
+      new_dot_char = k % 80 ? b[k] : 10;
+      k ++;
+      
+      if (new_dot_char < ' ') {
+        char_dot_index = 0;
+      }
+      else {
+      	// "Space" is our first char in the font picture
+        char_dot_index = new_dot_char - ' ';
+        // If we have some chars that are not in our fonts
+        if (char_dot_index >= FONT_DOT_NUM) {
+          char_dot_index = 0;
+        }
+      }
+    
+      // blit the char to the layer
+      SAGE_BlitPictureToLayer(font_dot_picture,
+                             	font_dot_posx[char_dot_index],
+                             	font_dot_posy[char_dot_index],
+                             	FONT_DOT_WIDTH,
+                             	FONT_DOT_HEIGHT,
+                             	DOT_TORUS_LAYER,
+                             	FONT_DOT_WIDTH * x,
+                             	FONT_DOT_HEIGHT * y);
+    }
+  }
+  
+  SAGE_BlitLayerToScreen(DOT_TORUS_LAYER, 0, 0);
+  SAGE_RefreshScreen();
+}
+
+void visualDonutDebug() {
+  SAGE_Event *event = NULL;
+
+  SAGE_PrintFText(10, 10, "%d fps", SAGE_GetFps());
+}
+
+//
+
 void restore(void) {
 	if (MaggieBase != NULL) {
     CloseLibrary(MaggieBase);
@@ -1980,7 +2168,7 @@ void restore(void) {
 
 void main(int argc, char* argv[]) {
   // generate random X position for each ball and also random intial Y position
-  int i, x = ballYPositionsTotal, b;
+  int i, x = ballYPositionsTotal;
   float rand, startXPosition = 40.0;
   float* randomFloatArray;
 
@@ -2045,7 +2233,7 @@ void main(int argc, char* argv[]) {
 	// the demo will only run on an Apollo Vampire 080
 	if (SAGE_ApolloCore() == FALSE) {
 		SAGE_AppliLog("Apollo Vampire not found! o_O");
-		return;
+		return FALSE;
 	}
 	else {
 		SAGE_AppliLog("Apollo Vampire found! ^_^");
@@ -2058,24 +2246,24 @@ void main(int argc, char* argv[]) {
   	MaggieBase = OpenLibrary((UBYTE *)"maggie.library", 0);
 		if (!MaggieBase) {
     	SAGE_ErrorLog("Can't open maggie.library");
-    	return;
+    	return FALSE;
   	}
   		
 		// load the 3d model
   	if (!LoadObjModel(filename_object)) {
   		SAGE_ErrorLog("Cannot load 3D object model with name %s\n", filename_object);
-	  	return;
+	  	return FALSE;
 		}
 
 	 	// load the texture
   	if (!LoadTexture(filename_texture)) {
   		SAGE_ErrorLog("Cannot load texture with name %s\n", filename_texture);
-   		return;
+   		return FALSE;
   	}
   
 		if (!initMaggieEngine()) {
   		SAGE_ErrorLog("Cannot initiate Maggie engine\n");
-	 	 	return;
+	 	 	return FALSE;
 		}
 		
 		music = SAGE_LoadMusic(filename_music);
@@ -2083,13 +2271,13 @@ void main(int argc, char* argv[]) {
       if (!SAGE_AddMusic(MUSIC_SLOT, music)) {
         SAGE_ErrorLog("Cannot load music\n");
         SAGE_DisplayError();
-        return;
+        return FALSE;
       }
     }
     else {
       SAGE_ErrorLog("Cannot initiate music\n");
   		SAGE_DisplayError();
-  		return;
+  		return FALSE;
   	}
 				
 		if (SAGE_OpenScreen(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_DEPTH, SSCR_STRICTRES)) {	
@@ -2112,11 +2300,11 @@ void main(int argc, char* argv[]) {
   		// create main layers aka pixel buffers
       createAllLayers();
       createAllSprites();
-  		createTextfieldLayer();
-  		
+      
   		// load all the assets
   		loadGridChess();
   		loadFont();
+  		loadDotFont();
   		loadMessage();
   		
   		SAGE_Pause(100);
@@ -2215,18 +2403,29 @@ void main(int argc, char* argv[]) {
       // or there is going to be a visual jump 
       // when starting to blit the sprite in the first section
       SAGE_Pause(25);
+      
+      while (!mainFinish) {
+        //visualDonutDebug();
+        //render3DDotDonut_lite();
+        //updateKeyboardKeysListener();
+        //// first 3D section (bouncing balls)
+        while (!finish3DSection1) {
+          updateSection1();
+  				renderSection1();
+  			}
         
-      while (!finish3DSection1) {
-        updateSection1();
-				renderSection1();
+        /*transitionTo3DSection2(32,
+                               32,
+                               SCREEN_HEIGHT/32,
+                               SCREEN_WIDTH/32,
+                               rgb888_to_rgb565(255, 255, 255));
+        
+        //second 3D section (dot pixel torus)
+        while (!finish3DSection2) {
+          render3DDotDonut_lite();
+  			}*/
 			}
-      
-      transitionTo3DSection2(32,
-                             32,
-                             SCREEN_HEIGHT/32,
-                             SCREEN_WIDTH/32,
-                             rgb888_to_rgb565(255, 255, 255));
-      
+			
 			// free memory
 			restore();
 			
