@@ -136,7 +136,6 @@
 // TRANSITION Layer 1st > 2nd 3D section
 
 #define	TRANSITION_LAYER		  10
-//#define	SAGE_3D_LAYER		      11  
 
 // TEXT MESSAGE
 
@@ -170,17 +169,22 @@ enum ditherTransitionSpeed { slow, normal, fast };
 // ******************************************
 
 BOOL mainFinish       = FALSE;
+
 BOOL finish3DSection1 = FALSE;
 BOOL isFinishSection1 = FALSE;
-BOOL finish3DSection2 = FALSE;
-BOOL isFinishSection2 = FALSE;
+
+BOOL finish3DSection2a = FALSE;
+BOOL finish3DSection2b = FALSE;
+
 BOOL finish3DSection3 = FALSE;
-BOOL isFinishSection3 = FALSE;
+
 BOOL startTransitionToSection2 = FALSE;
-BOOL startTransitionToSection3 = FALSE;
+
 BOOL calledVampireLogoOutro = FALSE;
 BOOL calledGridChessOutro = FALSE;
 BOOL calledBallsOutro = FALSE;
+BOOL canCreateEntitiesPart1 = TRUE;
+BOOL canCreateEntitiesPart2 = TRUE;
 
 SAGE_Picture *atlas_picture, *oranges_logo_picture, *grid_chess_picture, *font_picture;
 
@@ -195,6 +199,12 @@ UWORD layer_posx = SCREEN_WIDTH+FONT_WIDTH, layer_posy = 0, scroll_posy = 0;
 
 #define SAGE_3D_LAYER   11
 #define MAIN_CAMERA     1
+
+typedef struct {
+  SAGE_Entity *entity;
+  int entityIndex;
+  int animationIndexPosition;
+} Sage_Entity_Container;
 
 /*
   Prism centered:
@@ -212,10 +222,10 @@ UWORD layer_posx = SCREEN_WIDTH+FONT_WIDTH, layer_posy = 0, scroll_posy = 0;
 
 // prism 3d object
 SAGE_Vertex PrismVertices[4] = {
-  { 0.000000, -0.429397, 1.500000 },
-  { 0.866025, -0.429397, 0.500000 },
-  { -0.866025, -0.429397, 0.500000 },
-  { 0.000000, 0.809264, 0.500000 }
+  { 0.0, -0.429397, -1.0 },
+  { 0.866025, -0.429397, 0.5 },
+  { -0.866025, -0.429397, 0.5 },
+  { 0.0, 0.809264, 0.0 }
 };
 
 SAGE_Face PrismFaces[4] = {
@@ -255,6 +265,8 @@ SAGE_Entity Prism = {
   PrismFaces,
   PrismNormals
 };
+
+Sage_Entity_Container entitiesAnimation[S3DE_MAX_ENTITIES];
 
 SAGE_Vertex Path1[589] = {
   { -14.512112, 6.685640, 0.000000 },
@@ -848,6 +860,450 @@ SAGE_Vertex Path1[589] = {
   { 13.493297, 8.168991, 0.099030 }
 };
 
+SAGE_Vertex Path2_1[145] = {
+  { -6.749854, 0.000000, -2.000000 },
+  { -6.712467, -0.216758, -2.000000 },
+  { -6.674529, -0.430926, -2.000000 },
+  { -6.636048, -0.642512, -2.000000 },
+  { -6.597036, -0.851523, -2.000000 },
+  { -6.557501, -1.057964, -2.000000 },
+  { -6.517452, -1.261844, -2.000000 },
+  { -6.476900, -1.463168, -2.000000 },
+  { -6.435852, -1.661943, -2.000000 },
+  { -6.394320, -1.858177, -2.000000 },
+  { -6.352313, -2.051876, -2.000000 },
+  { -6.309839, -2.243047, -2.000000 },
+  { -6.266909, -2.431695, -2.000000 },
+  { -6.223532, -2.617830, -2.000000 },
+  { -6.179717, -2.801456, -2.000000 },
+  { -6.135474, -2.982581, -2.000000 },
+  { -6.090812, -3.161211, -2.000000 },
+  { -6.045741, -3.337354, -2.000000 },
+  { -6.000270, -3.511016, -2.000000 },
+  { -5.954409, -3.682203, -2.000000 },
+  { -5.908167, -3.850924, -2.000000 },
+  { -5.861554, -4.017183, -2.000000 },
+  { -5.814579, -4.180989, -2.000000 },
+  { -5.767252, -4.342347, -2.000000 },
+  { -5.719582, -4.501266, -2.000000 },
+  { -5.671577, -4.657750, -2.000000 },
+  { -5.623250, -4.811807, -2.000000 },
+  { -5.574607, -4.963445, -2.000000 },
+  { -5.525660, -5.112668, -2.000000 },
+  { -5.476417, -5.259485, -2.000000 },
+  { -5.426888, -5.403903, -2.000000 },
+  { -5.377082, -5.545927, -2.000000 },
+  { -5.327009, -5.685565, -2.000000 },
+  { -5.276679, -5.822824, -2.000000 },
+  { -5.226100, -5.957710, -2.000000 },
+  { -5.175283, -6.090230, -2.000000 },
+  { -5.124236, -6.220390, -2.000000 },
+  { -5.072969, -6.348198, -2.000000 },
+  { -5.021492, -6.473660, -2.000000 },
+  { -4.969814, -6.596783, -2.000000 },
+  { -4.917945, -6.717574, -2.000000 },
+  { -4.865894, -6.836040, -2.000000 },
+  { -4.813670, -6.952187, -2.000000 },
+  { -4.761284, -7.066021, -2.000000 },
+  { -4.708744, -7.177551, -2.000000 },
+  { -4.656059, -7.286782, -2.000000 },
+  { -4.603240, -7.393722, -2.000000 },
+  { -4.550297, -7.498376, -2.000000 },
+  { -4.497237, -7.600753, -2.000000 },
+  { -4.440553, -7.705719, -2.000000 },
+  { -4.376982, -7.817473, -2.000000 },
+  { -4.306901, -7.935014, -2.000000 },
+  { -4.230687, -8.057341, -2.000000 },
+  { -4.148719, -8.183453, -2.000000 },
+  { -4.061373, -8.312350, -2.000000 },
+  { -3.969028, -8.443032, -2.000000 },
+  { -3.872059, -8.574498, -2.000000 },
+  { -3.770847, -8.705749, -2.000000 },
+  { -3.665767, -8.835781, -2.000000 },
+  { -3.557197, -8.963596, -2.000000 },
+  { -3.445515, -9.088195, -2.000000 },
+  { -3.331098, -9.208574, -2.000000 },
+  { -3.214324, -9.323735, -2.000000 },
+  { -3.095571, -9.432677, -2.000000 },
+  { -2.975216, -9.534399, -2.000000 },
+  { -2.853636, -9.627900, -2.000000 },
+  { -2.731209, -9.712181, -2.000000 },
+  { -2.608312, -9.786241, -2.000000 },
+  { -2.485323, -9.849078, -2.000000 },
+  { -2.362620, -9.899693, -2.000000 },
+  { -2.240580, -9.937085, -2.000000 },
+  { -2.119581, -9.960254, -2.000000 },
+  { -2.000000, -9.968200, -2.000000 },
+  { -1.880483, -9.960254, -2.000000 },
+  { -1.759670, -9.937085, -2.000000 },
+  { -1.637925, -9.899693, -2.000000 },
+  { -1.515614, -9.849078, -2.000000 },
+  { -1.393104, -9.786241, -2.000000 },
+  { -1.270759, -9.712181, -2.000000 },
+  { -1.148945, -9.627900, -2.000000 },
+  { -1.028028, -9.534399, -2.000000 },
+  { -0.908374, -9.432677, -2.000000 },
+  { -0.790348, -9.323735, -2.000000 },
+  { -0.674316, -9.208574, -2.000000 },
+  { -0.560643, -9.088195, -2.000000 },
+  { -0.449696, -8.963596, -2.000000 },
+  { -0.341840, -8.835781, -2.000000 },
+  { -0.237439, -8.705749, -2.000000 },
+  { -0.136861, -8.574498, -2.000000 },
+  { -0.040471, -8.443032, -2.000000 },
+  { 0.051366, -8.312350, -2.000000 },
+  { 0.138283, -8.183453, -2.000000 },
+  { 0.219917, -8.057341, -2.000000 },
+  { 0.295899, -7.935014, -2.000000 },
+  { 0.365866, -7.817473, -2.000000 },
+  { 0.429451, -7.705719, -2.000000 },
+  { 0.486289, -7.600753, -2.000000 },
+  { 0.539582, -7.498376, -2.000000 },
+  { 0.592767, -7.393722, -2.000000 },
+  { 0.645836, -7.286783, -2.000000 },
+  { 0.698778, -7.177551, -2.000000 },
+  { 0.751583, -7.066021, -2.000000 },
+  { 0.804241, -6.952187, -2.000000 },
+  { 0.856741, -6.836040, -2.000000 },
+  { 0.909075, -6.717575, -2.000000 },
+  { 0.961232, -6.596784, -2.000000 },
+  { 1.013201, -6.473661, -2.000000 },
+  { 1.064973, -6.348199, -2.000000 },
+  { 1.116538, -6.220391, -2.000000 },
+  { 1.167885, -6.090230, -2.000000 },
+  { 1.219005, -5.957710, -2.000000 },
+  { 1.269887, -5.822824, -2.000000 },
+  { 1.320522, -5.685566, -2.000000 },
+  { 1.370899, -5.545928, -2.000000 },
+  { 1.421008, -5.403903, -2.000000 },
+  { 1.470839, -5.259486, -2.000000 },
+  { 1.520383, -5.112669, -2.000000 },
+  { 1.569628, -4.963445, -2.000000 },
+  { 1.618566, -4.811807, -2.000000 },
+  { 1.667185, -4.657750, -2.000000 },
+  { 1.715476, -4.501266, -2.000000 },
+  { 1.763429, -4.342348, -2.000000 },
+  { 1.811034, -4.180989, -2.000000 },
+  { 1.858280, -4.017184, -2.000000 },
+  { 1.905158, -3.850924, -2.000000 },
+  { 1.951658, -3.682204, -2.000000 },
+  { 1.997769, -3.511016, -2.000000 },
+  { 2.043481, -3.337354, -2.000000 },
+  { 2.088785, -3.161211, -2.000000 },
+  { 2.133670, -2.982581, -2.000000 },
+  { 2.178126, -2.801456, -2.000000 },
+  { 2.222143, -2.617830, -2.000000 },
+  { 2.265712, -2.431695, -2.000000 },
+  { 2.308821, -2.243046, -2.000000 },
+  { 2.351461, -2.051876, -2.000000 },
+  { 2.393623, -1.858177, -2.000000 },
+  { 2.435295, -1.661943, -2.000000 },
+  { 2.476468, -1.463167, -2.000000 },
+  { 2.517131, -1.261843, -2.000000 },
+  { 2.557276, -1.057963, -2.000000 },
+  { 2.596890, -0.851522, -2.000000 },
+  { 2.635966, -0.642511, -2.000000 },
+  { 2.674491, -0.430925, -2.000000 },
+  { 2.712458, -0.216757, -2.000000 },
+  { 2.749854, 0.000000, -2.000000 }
+};
+
+SAGE_Vertex Path2_2[145] = {
+  { -4.749854, 0.000000, 0.000000 },
+  { -4.712467, -0.216758, -0.000000 },
+  { -4.674529, -0.430926, -0.000000 },
+  { -4.636048, -0.642512, -0.000000 },
+  { -4.597036, -0.851523, -0.000000 },
+  { -4.557501, -1.057964, -0.000000 },
+  { -4.517452, -1.261844, -0.000000 },
+  { -4.476900, -1.463168, -0.000000 },
+  { -4.435852, -1.661943, -0.000000 },
+  { -4.394320, -1.858177, -0.000000 },
+  { -4.352313, -2.051876, -0.000000 },
+  { -4.309839, -2.243047, -0.000000 },
+  { -4.266909, -2.431695, -0.000000 },
+  { -4.223532, -2.617830, -0.000000 },
+  { -4.179717, -2.801456, -0.000000 },
+  { -4.135474, -2.982581, -0.000000 },
+  { -4.090812, -3.161211, -0.000000 },
+  { -4.045741, -3.337354, -0.000000 },
+  { -4.000270, -3.511016, -0.000000 },
+  { -3.954409, -3.682203, -0.000000 },
+  { -3.908167, -3.850924, -0.000000 },
+  { -3.861554, -4.017183, -0.000000 },
+  { -3.814579, -4.180989, -0.000000 },
+  { -3.767252, -4.342347, -0.000000 },
+  { -3.719581, -4.501266, -0.000000 },
+  { -3.671577, -4.657750, -0.000000 },
+  { -3.623250, -4.811807, -0.000000 },
+  { -3.574607, -4.963445, -0.000000 },
+  { -3.525660, -5.112668, -0.000000 },
+  { -3.476417, -5.259485, -0.000000 },
+  { -3.426888, -5.403903, -0.000000 },
+  { -3.377082, -5.545927, -0.000000 },
+  { -3.327009, -5.685565, -0.000000 },
+  { -3.276679, -5.822824, -0.000000 },
+  { -3.226100, -5.957710, -0.000000 },
+  { -3.175283, -6.090230, -0.000000 },
+  { -3.124236, -6.220390, -0.000000 },
+  { -3.072969, -6.348198, -0.000000 },
+  { -3.021492, -6.473660, -0.000000 },
+  { -2.969815, -6.596783, -0.000000 },
+  { -2.917945, -6.717574, -0.000000 },
+  { -2.865894, -6.836040, -0.000000 },
+  { -2.813670, -6.952187, -0.000000 },
+  { -2.761284, -7.066021, -0.000000 },
+  { -2.708744, -7.177551, -0.000000 },
+  { -2.656059, -7.286782, -0.000000 },
+  { -2.603240, -7.393722, -0.000000 },
+  { -2.550297, -7.498376, -0.000000 },
+  { -2.497237, -7.600753, -0.000000 },
+  { -2.440553, -7.705719, -0.000000 },
+  { -2.376982, -7.817473, -0.000000 },
+  { -2.306901, -7.935014, -0.000000 },
+  { -2.230687, -8.057341, -0.000000 },
+  { -2.148719, -8.183453, -0.000000 },
+  { -2.061373, -8.312350, -0.000000 },
+  { -1.969027, -8.443032, -0.000000 },
+  { -1.872059, -8.574498, -0.000000 },
+  { -1.770847, -8.705749, -0.000000 },
+  { -1.665767, -8.835781, -0.000000 },
+  { -1.557197, -8.963596, -0.000000 },
+  { -1.445515, -9.088195, -0.000000 },
+  { -1.331098, -9.208574, -0.000000 },
+  { -1.214324, -9.323735, -0.000000 },
+  { -1.095571, -9.432677, -0.000000 },
+  { -0.975216, -9.534399, -0.000000 },
+  { -0.853636, -9.627900, -0.000000 },
+  { -0.731209, -9.712181, -0.000000 },
+  { -0.608312, -9.786241, -0.000000 },
+  { -0.485323, -9.849078, -0.000000 },
+  { -0.362620, -9.899693, -0.000000 },
+  { -0.240580, -9.937085, -0.000000 },
+  { -0.119581, -9.960254, -0.000000 },
+  { 0.000000, -9.968200, -0.000000 },
+  { 0.119517, -9.960254, -0.000000 },
+  { 0.240330, -9.937085, -0.000000 },
+  { 0.362075, -9.899693, -0.000000 },
+  { 0.484386, -9.849078, -0.000000 },
+  { 0.606896, -9.786241, -0.000000 },
+  { 0.729241, -9.712181, -0.000000 },
+  { 0.851055, -9.627900, -0.000000 },
+  { 0.971972, -9.534399, -0.000000 },
+  { 1.091626, -9.432677, -0.000000 },
+  { 1.209652, -9.323735, -0.000000 },
+  { 1.325684, -9.208574, -0.000000 },
+  { 1.439357, -9.088195, -0.000000 },
+  { 1.550304, -8.963596, -0.000000 },
+  { 1.658160, -8.835781, -0.000000 },
+  { 1.762561, -8.705749, -0.000000 },
+  { 1.863139, -8.574498, -0.000000 },
+  { 1.959529, -8.443032, -0.000000 },
+  { 2.051366, -8.312350, -0.000000 },
+  { 2.138283, -8.183453, -0.000000 },
+  { 2.219917, -8.057341, -0.000000 },
+  { 2.295899, -7.935014, -0.000000 },
+  { 2.365866, -7.817473, -0.000000 },
+  { 2.429451, -7.705719, -0.000000 },
+  { 2.486289, -7.600753, -0.000000 },
+  { 2.539582, -7.498376, -0.000000 },
+  { 2.592767, -7.393722, -0.000000 },
+  { 2.645836, -7.286783, -0.000000 },
+  { 2.698778, -7.177551, -0.000000 },
+  { 2.751583, -7.066021, -0.000000 },
+  { 2.804241, -6.952187, -0.000000 },
+  { 2.856741, -6.836040, -0.000000 },
+  { 2.909075, -6.717575, -0.000000 },
+  { 2.961232, -6.596784, -0.000000 },
+  { 3.013201, -6.473661, -0.000000 },
+  { 3.064973, -6.348199, -0.000000 },
+  { 3.116538, -6.220391, -0.000000 },
+  { 3.167885, -6.090230, -0.000000 },
+  { 3.219005, -5.957710, -0.000000 },
+  { 3.269887, -5.822824, -0.000000 },
+  { 3.320522, -5.685566, -0.000000 },
+  { 3.370899, -5.545928, -0.000000 },
+  { 3.421008, -5.403903, -0.000000 },
+  { 3.470839, -5.259486, -0.000000 },
+  { 3.520383, -5.112669, -0.000000 },
+  { 3.569628, -4.963445, -0.000000 },
+  { 3.618566, -4.811807, -0.000000 },
+  { 3.667185, -4.657750, -0.000000 },
+  { 3.715476, -4.501266, -0.000000 },
+  { 3.763429, -4.342348, -0.000000 },
+  { 3.811034, -4.180989, -0.000000 },
+  { 3.858280, -4.017184, -0.000000 },
+  { 3.905158, -3.850924, -0.000000 },
+  { 3.951658, -3.682204, -0.000000 },
+  { 3.997769, -3.511016, -0.000000 },
+  { 4.043481, -3.337354, -0.000000 },
+  { 4.088785, -3.161211, -0.000000 },
+  { 4.133670, -2.982581, -0.000000 },
+  { 4.178126, -2.801456, -0.000000 },
+  { 4.222143, -2.617830, -0.000000 },
+  { 4.265712, -2.431695, -0.000000 },
+  { 4.308821, -2.243046, -0.000000 },
+  { 4.351461, -2.051876, -0.000000 },
+  { 4.393623, -1.858177, -0.000000 },
+  { 4.435295, -1.661943, -0.000000 },
+  { 4.476468, -1.463167, -0.000000 },
+  { 4.517131, -1.261843, -0.000000 },
+  { 4.557276, -1.057963, -0.000000 },
+  { 4.596890, -0.851522, -0.000000 },
+  { 4.635966, -0.642511, -0.000000 },
+  { 4.674491, -0.430925, -0.000000 },
+  { 4.712458, -0.216757, -0.000000 },
+  { 4.749854, 0.000000, 0.000000 }
+};
+
+SAGE_Vertex Path2_3[145] = {
+  { -2.749854, 0.000000, 2.000000 },
+  { -2.712467, -0.216758, 2.000000 },
+  { -2.674529, -0.430926, 2.000000 },
+  { -2.636048, -0.642512, 2.000000 },
+  { -2.597036, -0.851523, 2.000000 },
+  { -2.557501, -1.057964, 2.000000 },
+  { -2.517452, -1.261844, 2.000000 },
+  { -2.476900, -1.463168, 2.000000 },
+  { -2.435852, -1.661943, 2.000000 },
+  { -2.394320, -1.858177, 2.000000 },
+  { -2.352313, -2.051876, 2.000000 },
+  { -2.309839, -2.243047, 2.000000 },
+  { -2.266909, -2.431695, 2.000000 },
+  { -2.223532, -2.617830, 2.000000 },
+  { -2.179717, -2.801456, 2.000000 },
+  { -2.135474, -2.982581, 2.000000 },
+  { -2.090812, -3.161211, 2.000000 },
+  { -2.045741, -3.337354, 2.000000 },
+  { -2.000270, -3.511016, 2.000000 },
+  { -1.954409, -3.682203, 2.000000 },
+  { -1.908167, -3.850924, 2.000000 },
+  { -1.861554, -4.017183, 2.000000 },
+  { -1.814579, -4.180989, 2.000000 },
+  { -1.767252, -4.342347, 2.000000 },
+  { -1.719581, -4.501266, 2.000000 },
+  { -1.671577, -4.657750, 2.000000 },
+  { -1.623250, -4.811807, 2.000000 },
+  { -1.574607, -4.963445, 2.000000 },
+  { -1.525660, -5.112668, 2.000000 },
+  { -1.476417, -5.259485, 2.000000 },
+  { -1.426888, -5.403903, 2.000000 },
+  { -1.377082, -5.545927, 2.000000 },
+  { -1.327009, -5.685565, 2.000000 },
+  { -1.276679, -5.822824, 2.000000 },
+  { -1.226100, -5.957710, 2.000000 },
+  { -1.175283, -6.090230, 2.000000 },
+  { -1.124236, -6.220390, 2.000000 },
+  { -1.072969, -6.348198, 2.000000 },
+  { -1.021492, -6.473660, 2.000000 },
+  { -0.969815, -6.596783, 2.000000 },
+  { -0.917945, -6.717574, 2.000000 },
+  { -0.865894, -6.836040, 2.000000 },
+  { -0.813670, -6.952187, 2.000000 },
+  { -0.761284, -7.066021, 2.000000 },
+  { -0.708744, -7.177551, 2.000000 },
+  { -0.656059, -7.286782, 2.000000 },
+  { -0.603240, -7.393722, 2.000000 },
+  { -0.550297, -7.498376, 2.000000 },
+  { -0.497237, -7.600753, 2.000000 },
+  { -0.440553, -7.705719, 2.000000 },
+  { -0.376982, -7.817473, 2.000000 },
+  { -0.306901, -7.935014, 2.000000 },
+  { -0.230687, -8.057341, 2.000000 },
+  { -0.148719, -8.183453, 2.000000 },
+  { -0.061373, -8.312350, 2.000000 },
+  { 0.030973, -8.443032, 2.000000 },
+  { 0.127941, -8.574498, 2.000000 },
+  { 0.229153, -8.705749, 2.000000 },
+  { 0.334233, -8.835781, 2.000000 },
+  { 0.442803, -8.963596, 2.000000 },
+  { 0.554485, -9.088195, 2.000000 },
+  { 0.668902, -9.208574, 2.000000 },
+  { 0.785676, -9.323735, 2.000000 },
+  { 0.904429, -9.432677, 2.000000 },
+  { 1.024784, -9.534399, 2.000000 },
+  { 1.146364, -9.627900, 2.000000 },
+  { 1.268791, -9.712181, 2.000000 },
+  { 1.391688, -9.786241, 2.000000 },
+  { 1.514677, -9.849078, 2.000000 },
+  { 1.637380, -9.899693, 2.000000 },
+  { 1.759420, -9.937085, 2.000000 },
+  { 1.880419, -9.960254, 2.000000 },
+  { 2.000000, -9.968200, 2.000000 },
+  { 2.119517, -9.960254, 2.000000 },
+  { 2.240330, -9.937085, 2.000000 },
+  { 2.362075, -9.899693, 2.000000 },
+  { 2.484386, -9.849078, 2.000000 },
+  { 2.606896, -9.786241, 2.000000 },
+  { 2.729241, -9.712181, 2.000000 },
+  { 2.851055, -9.627900, 2.000000 },
+  { 2.971972, -9.534399, 2.000000 },
+  { 3.091626, -9.432677, 2.000000 },
+  { 3.209652, -9.323735, 2.000000 },
+  { 3.325684, -9.208574, 2.000000 },
+  { 3.439357, -9.088195, 2.000000 },
+  { 3.550304, -8.963596, 2.000000 },
+  { 3.658160, -8.835781, 2.000000 },
+  { 3.762561, -8.705749, 2.000000 },
+  { 3.863139, -8.574498, 2.000000 },
+  { 3.959529, -8.443032, 2.000000 },
+  { 4.051366, -8.312350, 2.000000 },
+  { 4.138284, -8.183453, 2.000000 },
+  { 4.219916, -8.057341, 2.000000 },
+  { 4.295899, -7.935014, 2.000000 },
+  { 4.365866, -7.817473, 2.000000 },
+  { 4.429451, -7.705719, 2.000000 },
+  { 4.486289, -7.600753, 2.000000 },
+  { 4.539581, -7.498376, 2.000000 },
+  { 4.592767, -7.393722, 2.000000 },
+  { 4.645836, -7.286783, 2.000000 },
+  { 4.698778, -7.177551, 2.000000 },
+  { 4.751583, -7.066021, 2.000000 },
+  { 4.804241, -6.952187, 2.000000 },
+  { 4.856741, -6.836040, 2.000000 },
+  { 4.909075, -6.717575, 2.000000 },
+  { 4.961232, -6.596784, 2.000000 },
+  { 5.013201, -6.473661, 2.000000 },
+  { 5.064973, -6.348199, 2.000000 },
+  { 5.116538, -6.220391, 2.000000 },
+  { 5.167885, -6.090230, 2.000000 },
+  { 5.219005, -5.957710, 2.000000 },
+  { 5.269887, -5.822824, 2.000000 },
+  { 5.320522, -5.685566, 2.000000 },
+  { 5.370899, -5.545928, 2.000000 },
+  { 5.421008, -5.403903, 2.000000 },
+  { 5.470840, -5.259486, 2.000000 },
+  { 5.520383, -5.112669, 2.000000 },
+  { 5.569629, -4.963445, 2.000000 },
+  { 5.618566, -4.811807, 2.000000 },
+  { 5.667185, -4.657750, 2.000000 },
+  { 5.715476, -4.501266, 2.000000 },
+  { 5.763429, -4.342348, 2.000000 },
+  { 5.811034, -4.180989, 2.000000 },
+  { 5.858280, -4.017184, 2.000000 },
+  { 5.905158, -3.850924, 2.000000 },
+  { 5.951657, -3.682204, 2.000000 },
+  { 5.997768, -3.511016, 2.000000 },
+  { 6.043481, -3.337354, 2.000000 },
+  { 6.088785, -3.161211, 2.000000 },
+  { 6.133670, -2.982581, 2.000000 },
+  { 6.178126, -2.801456, 2.000000 },
+  { 6.222143, -2.617830, 2.000000 },
+  { 6.265712, -2.431695, 2.000000 },
+  { 6.308821, -2.243046, 2.000000 },
+  { 6.351461, -2.051876, 2.000000 },
+  { 6.393623, -1.858177, 2.000000 },
+  { 6.435295, -1.661943, 2.000000 },
+  { 6.476468, -1.463167, 2.000000 },
+  { 6.517131, -1.261843, 2.000000 },
+  { 6.557276, -1.057963, 2.000000 },
+  { 6.596890, -0.851522, 2.000000 },
+  { 6.635966, -0.642511, 2.000000 },
+  { 6.674491, -0.430925, 2.000000 },
+  { 6.712458, -0.216757, 2.000000 },
+  { 6.749854, 0.000000, 2.000000 }
+};
+
 // ******************************************
 // GENERIC HELPERS
 // ******************************************
@@ -1187,15 +1643,56 @@ HslColor* Hsl_CreateFromRgbF(double r, double g, double b)
 }
 
 
+static float hue_to_rgb(float p, float q, float t) {
+  if (t<0.0) t += 1.0f;
+  if (t>1.0) t -= 1.0f;
+  
+  //if (t * 6.0 < 1.0) return p + (q - p) * 6 * t;
+  //if (t * 2.0 < 1.0) return q;
+  //if (t * 3.0 < 2.0) return p + (q - p) * ((2.0 / 3) - t);
+  if (t<1.0 / 6.0f) return p+(q-p)*6.0f*t;
+  if (t<1.0 / 2.0f) return q;
+  if (t<2.0 / 3.0f) return p+(q-p)*(2.0f/3.0f-t)*6.0f;
+  return p;
+}
+
+void hsl_to_rgb(float h, float s, float l, float *r, float *g, float *b) {
+  float p, q;
+  
+  if (s == 0.0) {
+    *r = *g = *b = l;
+    return;
+  }
+  
+  /*if (l < 0.5) {
+    q = l * (1.0 + s);
+  }
+  else {
+    q = (l + s) - (s * l);
+  }
+  
+  p = 2.0 * l - q;
+  
+  *r = hue_to_rgb(p, q, h+(1.0f/3.0));
+  *g = hue_to_rgb(p, q, h);
+  *b = hue_to_rgb(p, q, h-(1.0f/3.0));*/
+  
+  q = (l<0.5f) ? (l*(1.0f+s)) : (l+s-l*s);
+  p = 2.0f*l-q;
+  *r = hue_to_rgb(p, q, h+1.0f/3.0);
+  *g = hue_to_rgb(p, q, h);
+  *b = hue_to_rgb(p, q, h-1.0f/3.0);
+}
+
 RgbFColor* RgbF_CreateFromHsl(double h, double s, double l) {
   RgbFColor* color = NULL;
-  
+  float r, g, b;
   double c = 0.0, m = 0.0, x = 0.0;
   
   if (Hsl_IsValid(h, s, l) == TRUE) {
     c = (1.0 - fabs(2 * l - 1.0)) * s;
-    m = 1.0 * (l - 0.5 * c);
     x = c * (1.0 - fabs(fmod(h / 60.0, 2) - 1.0));
+    m = 1.0 * (l - 0.5 * c);
     
     if (h >= 0.0 && h < (HUE_UPPER_LIMIT / 6.0))
     {
@@ -1252,6 +1749,7 @@ RgbIColor* RgbI_CreateFromRealForm(double r, double g, double b)
     }
     return color;
 }
+
 
 // ******************************************
 // Layers
@@ -2416,14 +2914,16 @@ void updateKeyboardKeysListener(void) {
   	if (event->type == SEVT_MOUSEBT) {
    		mainFinish = TRUE;
    		finish3DSection1 = TRUE;
-   		finish3DSection2 = TRUE;
+   		finish3DSection2a = TRUE;
+   		finish3DSection2b = TRUE;
    		finish3DSection3 = TRUE;
   	}
   	// If we press the ESC key, we stop the loop
 		else if (event->type == SEVT_RAWKEY && event->code == SKEY_EN_ESC) {
    		mainFinish = TRUE;
    		finish3DSection1 = TRUE;
-   		finish3DSection2 = TRUE;
+   		finish3DSection2a = TRUE;
+   		finish3DSection2b = TRUE;
    		finish3DSection3 = TRUE;
    	}
   }
@@ -2772,6 +3272,46 @@ void renderSection1(void) {
 // Transition 1st>2nd sections
 // ******************************************
 
+void transitionToOrangesLogo(int fillWidth,
+                             int fillHeight,
+                             int lines,
+                             int columns,
+                             int color) {
+  int i, line, column, trackXposition;
+  
+  fillAreaLayer(TRANSITION_LAYER,
+                0,
+                0,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT,
+                rgb888_to_rgb565(0, 0, 0));
+                  	
+  // start the dithering filter animation
+	for (line = 0; line < lines; line++) {
+    for (column = 0; column < columns; column++) {
+      // make a worm style effect
+    	if (line%2 == 0) {
+      	trackXposition = column * fillWidth;
+    	}
+    	else {
+      	trackXposition = (((columns - 1) * fillWidth)) - (column * fillWidth);
+    	}
+    	
+    	SAGE_BlitPictureToLayer(oranges_logo_picture,
+                          	 	trackXposition,
+                          	 	line * fillHeight,
+                            	fillWidth,
+                            	fillHeight,
+                          	 	TRANSITION_LAYER,
+                          	 	trackXposition,
+                          	 	line * fillHeight);
+                       
+      SAGE_BlitLayerToScreen(TRANSITION_LAYER, 0, 0);
+      SAGE_RefreshScreen();
+    }
+  }
+}
+
 void transitionTo3DSection2(int fillWidth,
                             int fillHeight,
                             int lines,
@@ -2795,11 +3335,10 @@ void transitionTo3DSection2(int fillWidth,
                   	line * fillHeight,
                   	fillWidth,
                   	fillHeight,
-                  	rgb888_to_rgb565(255, 255, 255));
+                  	color);
                   	
       SAGE_BlitLayerToScreen(TRANSITION_LAYER, 0, 0);
-      SAGE_RefreshScreen(); 
-      //SAGE_Pause(1);
+      SAGE_RefreshScreen();
     }
   }
 }
@@ -2808,23 +3347,53 @@ void transitionTo3DSection2(int fillWidth,
 // 2nd section
 // ******************************************
 
-HslColor *hslUpdateStart, *hslUpdate;
-int positionIndex = 0, totalEntities = 0, indexEntity = 0;
+#define ZOOM_STEP 0.5
+WORD rotate = S3DE_ONEDEGREE * 180;
+FLOAT zoom = 0.0, camX = 0.0, camY = 0.0, camRotX = 0.0, camRotY = 0.0;
+
+HslColor *hslUpdateStart, *hslUpdate, *hslUpdate1, *hslUpdate2, *hslUpdate3;
+int positionIndex = 0, totalEntities = 0, indexEntity = 0, indexEntity1 = 1, indexEntity2 = 401, indexEntity3 = 801;
+int vblPart1Count = 0, vblPart2Count = 0, vblBetweenPart1Part2Count = 0, vblBetweenPart2Part3Count = 0;
+
+void debugSage3D() {
+  // Draw the fps counter
+  SAGE_PrintFText(10, 15, "%d fps", SAGE_GetFps());
+ 
+  SAGE_SetCameraPosition(MAIN_CAMERA, camX, camY, zoom);
+  
+  SAGE_PrintFText(10, 236,
+    "camX=%.2f camY=%.2f zoom=%.2f",
+    camX, camY, zoom
+  );
+  
+  SAGE_PrintFText(10, 246,
+    "x_=%.2f y_=%.2f",
+    camRotX, camRotY
+  );
+}
 
 void addEntity() {
   int p, count, i;
   RgbFColor* rgbF = NULL;
   RgbIColor* rgbI = NULL;
   SAGE_Entity *onFlyEntity;
-     
+  
   count = SAGE_GetVblCount();
   
+  if (!canCreateEntitiesPart1) {
+    vblBetweenPart1Part2Count = count;
+    if (vblBetweenPart1Part2Count >= 850) {
+      finish3DSection2a = TRUE;
+    }
+    return;
+  }
+      
   if (count >= 20) {
     for (i=0; i<6; i++) {
       onFlyEntity = SAGE_CloneEntity(&Prism);
     
-      hslUpdate->L = 0.4;        
-      
+      hslUpdate->L = 0.4;     
+    
       for (p=0; p<4; p++) {
         rgbF = RgbF_CreateFromHsl(hslUpdate->H, hslUpdate->S, hslUpdate->L);
         rgbI = RgbI_CreateFromRealForm(rgbF->R, rgbF->G, rgbF->B);
@@ -2835,8 +3404,7 @@ void addEntity() {
       }
       
       SAGE_AddEntity(indexEntity, onFlyEntity);
-      //SAGE_SetEntityPosition(indexEntity, Path1[0].x - (15.0 + (i * 1.5)), Path1[0].y - (2.0 * i), Path1[0].z);
-      SAGE_SetEntityPosition(indexEntity, Path1[0].x - 15.0, Path1[0].y - (2.0 * i), Path1[0].z);
+      SAGE_SetEntityPosition(indexEntity, Path1[0].x - 10.0, Path1[0].y - (2.0 * i), Path1[0].z);
       indexEntity ++;
       
       if (indexEntity >= S3DE_MAX_ENTITIES) {
@@ -2844,6 +3412,13 @@ void addEntity() {
       }
       
       totalEntities ++;
+      
+      vblPart1Count += count;
+
+      // end this part after around 30seconds = 30vbl per second
+      if (vblPart1Count >= 10000) {
+        canCreateEntitiesPart1 = FALSE;
+      }
       
       SAGE_ResetVblCount();
     }
@@ -2860,11 +3435,7 @@ void updatePrismLocation() {
   int i, index;
   
   for (i=0; i<1024; i++) {
-    //index = checkEntityCurrentPosition(i);
-    
-    //SAGE_SetEntityPosition(i, Path1[index+1].x, Path1[index+1].y, Path1[index+1].z);
     SAGE_MoveEntity(i, +0.1, 0, 0);
-      
     SAGE_RotateEntity(i,
                       S3DE_ONEDEGREE * 2,
                       S3DE_ONEDEGREE * 2,
@@ -2882,44 +3453,203 @@ void removeEntity() {
     
     if (onFlyEntity->posx >= 15.0) {
        SAGE_RemoveEntity(i);
-       //totalEntities --;
     }
-    
-    /*if (onFlyEntity->posx == Path1[589].x &&
-        onFlyEntity->posy == Path1[589].y &&
-        onFlyEntity->posz == Path1[589].z) {
-       SAGE_RemoveEntity(i);
-       //totalEntities --;
-    }*/
   }
 }
 
-void updateEntities() {
-  addEntity();
-  updatePrismLocation();
-  removeEntity();  
-}
-
-int checkEntityCurrentPosition(int index) {
-  int i;
+void addEntity2() {
+  int p, count;
+  RgbFColor* rgbF = NULL;
+  RgbIColor* rgbI = NULL;
   SAGE_Entity *onFlyEntity;
-
-  onFlyEntity = SAGE_GetEntity(index);
-    
-  /*for (i=0; i<=589; i++) {  
-    if (onFlyEntity->posx == Path1[i].x &&
-        onFlyEntity->posy == Path1[i].y &&
-        onFlyEntity->posz == Path1[i].z) {
-       return i;
+  Sage_Entity_Container container;
+  
+  count = SAGE_GetVblCount();
+  
+  if (!canCreateEntitiesPart2) {
+    vblBetweenPart2Part3Count = count;
+    if (vblBetweenPart2Part3Count >= 400) {
+      finish3DSection2b = TRUE;
     }
-  }*/
-
-  return 0;
+    return;
+  }
+  
+  if (count >= 12) {
+    // first path entities
+    onFlyEntity = SAGE_CloneEntity(&Prism);
+      
+    hslUpdate1->L = 0.4;     
+  
+    for (p=0; p<4; p++) {
+      rgbF = RgbF_CreateFromHsl(hslUpdate1->H, hslUpdate1->S, hslUpdate1->L);
+      rgbI = RgbI_CreateFromRealForm(rgbF->R, rgbF->G, rgbF->B);
+      
+      onFlyEntity->faces[p].color = rgb888_to_rgb565(rgbI->R, rgbI->G, rgbI->B);
+      
+      hslUpdate1->L += 0.085;
+    } 
+    
+    SAGE_AddEntity(indexEntity1, onFlyEntity);
+    SAGE_SetEntityPosition(indexEntity1, Path2_1[0].x, Path2_1[0].y, Path2_1[0].z);
+    
+    container.entity = onFlyEntity;
+    container.entityIndex = indexEntity1;
+    container.animationIndexPosition = 0;
+    
+    //
+    entitiesAnimation[indexEntity1] = container;
+    
+    hslUpdate1->H += 8;
+     
+    if (hslUpdate1->H > HUE_UPPER_LIMIT) {
+      hslUpdate1->H = 0.0;
+    }
+    
+    indexEntity1 ++;
+      
+    if (indexEntity1 == 200) {
+      indexEntity1 = 1;
+    }
+    
+    // second path entities
+    onFlyEntity = SAGE_CloneEntity(&Prism);
+      
+    hslUpdate2->L = 0.4;     
+  
+    for (p=0; p<4; p++) {
+      rgbF = RgbF_CreateFromHsl(hslUpdate2->H, hslUpdate2->S, hslUpdate2->L);
+      rgbI = RgbI_CreateFromRealForm(rgbF->R, rgbF->G, rgbF->B);
+      
+      onFlyEntity->faces[p].color = rgb888_to_rgb565(rgbI->R, rgbI->G, rgbI->B);
+      
+      hslUpdate2->L += 0.085;
+    }
+    
+    SAGE_AddEntity(indexEntity2, onFlyEntity);
+    SAGE_SetEntityPosition(indexEntity2, Path2_2[0].x, Path2_2[0].y, Path2_2[0].z);
+    
+    container.entity = onFlyEntity;
+    container.entityIndex = indexEntity2;
+    container.animationIndexPosition = 0;
+    
+    //
+    entitiesAnimation[indexEntity2] = container;
+    
+    hslUpdate2->H += 8;
+     
+    if (hslUpdate2->H > HUE_UPPER_LIMIT) {
+      hslUpdate2->H = 0.0;
+    }
+    
+    indexEntity2 ++;
+      
+    if (indexEntity2 == 700) {
+      indexEntity2 = 401;
+    }
+    
+    // third path entities
+    onFlyEntity = SAGE_CloneEntity(&Prism);
+      
+    hslUpdate3->L = 0.4;     
+  
+    for (p=0; p<4; p++) {
+      rgbF = RgbF_CreateFromHsl(hslUpdate3->H, hslUpdate3->S, hslUpdate3->L);
+      rgbI = RgbI_CreateFromRealForm(rgbF->R, rgbF->G, rgbF->B);
+      
+      onFlyEntity->faces[p].color = rgb888_to_rgb565(rgbI->R, rgbI->G, rgbI->B);
+      
+      hslUpdate3->L += 0.085;
+    }
+    
+    
+    SAGE_AddEntity(indexEntity3, onFlyEntity);
+    SAGE_SetEntityPosition(indexEntity3, Path2_3[0].x, Path2_3[0].y, Path2_3[0].z);
+    
+    container.entity = onFlyEntity;
+    container.entityIndex = indexEntity3;
+    container.animationIndexPosition = 0;
+    
+    //
+    entitiesAnimation[indexEntity3] = container;
+    
+    hslUpdate3->H += 8;
+    
+    if (hslUpdate3->H > HUE_UPPER_LIMIT) {
+      hslUpdate3->H = 0.0;
+    }
+    
+    indexEntity3 ++;
+      
+    if (indexEntity3 == 900) {
+      indexEntity3 = 801;
+    }
+    
+    vblPart2Count += count;
+    //printf("%d\n", vblPart2Count);
+    // end this part after around 30seconds = 30vbl per second
+    if (vblPart2Count >= 1600) {
+      canCreateEntitiesPart2 = FALSE;
+    }
+    
+    SAGE_ResetVblCount();
+  }
 }
 
-#define ZOOM_STEP 0.5
-WORD rotate = S3DE_ONEDEGREE * 180;
-FLOAT zoom = -3.0, camX = 5.0, camY = -4.0, camRotX = -130.0, camRotY = -121;
+void updatePrismLocation2() {
+  int i;
+  Sage_Entity_Container container;
+  
+  for (i=0; i<S3DE_MAX_ENTITIES; i++) {
+    container = entitiesAnimation[i];
+    
+    if (i<=400) {
+      SAGE_SetEntityPosition(container.entityIndex, 
+                             Path2_1[container.animationIndexPosition].x,
+                             Path2_1[container.animationIndexPosition].y,
+                             Path2_1[container.animationIndexPosition].z);
+    }
+     
+    if (i>400 && i<=800) {
+      SAGE_SetEntityPosition(container.entityIndex, 
+                             Path2_2[container.animationIndexPosition].x,
+                             Path2_2[container.animationIndexPosition].y,
+                             Path2_2[container.animationIndexPosition].z);
+    }
+          
+    if (i>800) {
+      SAGE_SetEntityPosition(container.entityIndex, 
+                             Path2_3[container.animationIndexPosition].x,
+                             Path2_3[container.animationIndexPosition].y,
+                             Path2_3[container.animationIndexPosition].z);
+    }
+                                         
+    SAGE_RotateEntity(container.entityIndex,
+                      S3DE_ONEDEGREE * 3,
+                      S3DE_ONEDEGREE * 2,
+                      S3DE_ONEDEGREE * 3);
+                    
+    container.animationIndexPosition += 1;
+    
+    if (container.animationIndexPosition > 145) {
+      container.animationIndexPosition = 0;
+    }
+    
+    entitiesAnimation[i] = container;
+  }
+}
+
+void removeEntity2() {
+  int i;
+  Sage_Entity_Container container;
+  
+  for (i=0; i<S3DE_MAX_ENTITIES; i++) {
+    container = entitiesAnimation[i];
+    
+    if (container.animationIndexPosition >= 144) {
+      SAGE_RemoveEntity(i);
+    }
+  }
+}
 
 void initSage3DWorld() {
   RgbFColor* rgbF = NULL;
@@ -2936,7 +3666,7 @@ void initSage3DWorld() {
   
   SAGE_SetActiveCamera(MAIN_CAMERA);
   SAGE_SetCameraAngle(MAIN_CAMERA, camRotX, camRotY, 0);
-  SAGE_SetCameraPlane(MAIN_CAMERA, (FLOAT)-50.0, (FLOAT)100.0);
+  SAGE_SetCameraPlane(MAIN_CAMERA, (FLOAT)-10.0, (FLOAT)100.0);
   SAGE_SetCameraPosition(MAIN_CAMERA, camX, camY, zoom);
   
   SAGE_InitEntity(&Prism);
@@ -2947,7 +3677,53 @@ void initSage3DWorld() {
     
   // convert the initial RGB color into HSL
   hslUpdate = Hsl_CreateFromRgbF(rgbF->R, rgbF->G, rgbF->B);
-  hslUpdate->L = 0.5;
+  hslUpdate->S = 1.0;
+  hslUpdate->L = 0.4;
+  
+  // section 2b color base per each path
+  // convert the initial RGB color into HSL
+  // Red
+  hslUpdate1 = Hsl_CreateFromRgbF(rgbF->R, rgbF->G, rgbF->B);
+  hslUpdate1->S = 1.0;
+  hslUpdate1->L = 0.4;
+  
+  // Green
+  rgbI = RgbI_Create(0, 255, 0);
+  rgbF = RgbF_CreateFromIntegerForm(rgbI->R, rgbI->G, rgbI->B);
+  
+  hslUpdate2 = Hsl_CreateFromRgbF(rgbF->R, rgbF->G, rgbF->B);
+  hslUpdate2->S = 1.0;
+  hslUpdate2->L = 0.4;
+  
+  // Blue
+  rgbI = RgbI_Create(0, 0, 255);
+  rgbF = RgbF_CreateFromIntegerForm(rgbI->R, rgbI->G, rgbI->B);
+  
+  hslUpdate3 = Hsl_CreateFromRgbF(rgbF->R, rgbF->G, rgbF->B);
+  hslUpdate3->S = 1.0;
+  hslUpdate3->L = 0.4;
+}
+
+void initCameraSection2a() {
+  zoom = -3.0;
+  camX = 5.0;
+  camY = -4.0;
+  camRotX = -130.0;
+  camRotY = -121;
+  
+  SAGE_SetCameraAngle(MAIN_CAMERA, camRotX, camRotY, 0);
+  SAGE_SetCameraPosition(MAIN_CAMERA, camX, camY, zoom);
+}
+
+void initCameraSection2b() {
+  zoom = -6.0;
+  camX = 0.5;
+  camY = -7.0;
+  camRotX = 16.0;
+  camRotY = -31.0;
+  
+  SAGE_SetCameraAngle(MAIN_CAMERA, camRotX, camRotY, 0);
+  SAGE_SetCameraPosition(MAIN_CAMERA, camX, camY, zoom);
 }
 
 void _update(void) {
@@ -2959,14 +3735,16 @@ void _update(void) {
   	if (event->type == SEVT_MOUSEBT) {
    		mainFinish = TRUE;
    		finish3DSection1 = TRUE;
-   		finish3DSection2 = TRUE;
+   		finish3DSection2a = TRUE;
+   		finish3DSection2b = TRUE;
    		finish3DSection3 = TRUE;
   	}
   	// If we press the ESC key, we stop the loop
 		else if (event->type == SEVT_RAWKEY && event->code == SKEY_EN_ESC) {
    		mainFinish = TRUE;
    		finish3DSection1 = TRUE;
-   		finish3DSection2 = TRUE;
+   		finish3DSection2a = TRUE;
+   		finish3DSection2b = TRUE;
    		finish3DSection3 = TRUE;
    	}
    	
@@ -3016,19 +3794,32 @@ void _update(void) {
   SAGE_RotateCamera(MAIN_CAMERA, x_, y_, 0);
 }
 
-void renderSection2(void) {
+void renderSection2a(void) {
   clearLayerBitmap(SAGE_3D_LAYER, rgb888_to_rgb565(255, 255, 255));
   
   addEntity();
   updatePrismLocation();
   removeEntity(); 
   
-  //_update();
+  SAGE_BlitLayerToScreen(SAGE_3D_LAYER, 0, 0);
+  SAGE_RenderWorld();
+  
+  SAGE_RefreshScreen();
+}
+
+void renderSection2b(void) {
+  clearLayerBitmap(SAGE_3D_LAYER, rgb888_to_rgb565(255, 255, 255));
+  
+  addEntity2();
+  updatePrismLocation2();
+  removeEntity2();
+  
+  _update();
   
   SAGE_BlitLayerToScreen(SAGE_3D_LAYER, 0, 0);
   SAGE_RenderWorld();
   
-  //debugSage3D();
+  debugSage3D();
   
   SAGE_RefreshScreen();
 }
@@ -3037,24 +3828,6 @@ void renderSection2(void) {
 // 3rd Section
 // ******************************************
 void renderSection3(void) {
-  
-}
-
-void debugSage3D() {
-  // Draw the fps counter
-  SAGE_PrintFText(10, 15, "%d fps", SAGE_GetFps());
- 
-  SAGE_SetCameraPosition(MAIN_CAMERA, camX, camY, zoom);
-  
-  SAGE_PrintFText(10, 236,
-    "camX=%.2f camY=%.2f zoom=%.2f",
-    camX, camY, zoom
-  );
-  
-  SAGE_PrintFText(10, 246,
-    "x_=%.2f y_=%.2f",
-    camRotX, camRotY
-  );
 }
 
 // ******************************************
@@ -3093,11 +3866,31 @@ void main(int argc, char* argv[]) {
   int i, x = ballYPositionsTotal;
   float rand, startXPosition = 40.0;
   float* randomFloatArray;
-
+  RgbFColor* rgbF = NULL;
+  RgbIColor* rgbI = NULL;
+  
   srand((unsigned int)time(NULL));
   
   randomFloatArray = randomFloatNumbers(totalBalls, leftXBoundary, rightXBoundary);
 
+  /*initSage3DWorld();
+  
+  hslUpdate->H = 0.0;
+  hslUpdate->L = 0.01;
+  hslUpdate->S = 0.0;        
+
+  for (i=0; i<10; i++) {
+    rgbF = RgbF_CreateFromHsl(hslUpdate->H, hslUpdate->S, hslUpdate->L);
+    rgbI = RgbI_CreateFromRealForm(rgbF->R, rgbF->G, rgbF->B);
+    
+    printf("%d %d %d\n", rgbI->R, rgbI->G, rgbI->B);
+    
+    //hslUpdate->H += 25;
+  }
+      
+  return FALSE;*/
+  
+  
   // INITIALIZE THE DEMO
   // the demo will only run on an Apollo Vampire 080
 	if (SAGE_ApolloCore() == FALSE) {
@@ -3210,7 +4003,7 @@ void main(int argc, char* argv[]) {
   	 	
   		// fps counter
       if (SAGE_EnableFrameCount(TRUE)) {
-        SAGE_MaximumFPS(60);
+        SAGE_MaximumFPS(30);
         // setting to TRUE will set the fps to 60 and mutually negate MaximumFPS()
        	SAGE_VerticalSynchro(FALSE);
       }
@@ -3225,6 +4018,7 @@ void main(int argc, char* argv[]) {
       createAllSprites();
       
   		// load all the assets
+  		loadOrangesLogo();
   		loadGridChess();
   		loadFont();
   		loadMessage();
@@ -3236,37 +4030,24 @@ void main(int argc, char* argv[]) {
   		SAGE_PlayMusic(MUSIC_SLOT);
 
 			// intro pre-sections
-			showOrangesLogo();
-			/*ditheringTransition(0,
-                          0,
-                          32,
-                          32,
-                          SCREEN_WIDTH/32,
-                          SCREEN_WIDTH/32,
-                          fast,
-                          ORANGES_LAYER,
-                          0,
-                          0,
-                          worm,
-                          in,
-                          -999);
-                          */
+			goto transition;
+			
+			transitionToOrangesLogo(32,
+                               32,
+                               SCREEN_HEIGHT/32,
+                               SCREEN_WIDTH/32,
+                               rgb888_to_rgb565(255, 255, 255));
+                          
+      showOrangesLogo();
+      
 			SAGE_Pause(200);
 			
-			ditheringTransition(0,
-                          0,
-                          32,
-                          32,
-                          SCREEN_WIDTH/32,
-                          SCREEN_WIDTH/32,
-                          fast,
-                          ORANGES_LAYER,
-                          0,
-                          0,
-                          fullLine,
-                          out,
-                          -999);
-                          
+			transitionTo3DSection2(32,
+                             32,
+                             SCREEN_HEIGHT/32,
+                             SCREEN_WIDTH/32,
+                             rgb888_to_rgb565(0, 0, 0));
+       
 			animateRunningOnIn();
       animateVampireLogo(SCREEN_WIDTH/2, SCREEN_HEIGHT+ATLAS_VAMPIRE_LOGO_HEIGHT, 152);			
       
@@ -3367,20 +4148,35 @@ void main(int argc, char* argv[]) {
           updateSection1();
   				renderSection1();
   			}
-       
+      
         transitionTo3DSection2(32,
                                32,
                                SCREEN_HEIGHT/32,
                                SCREEN_WIDTH/32,
                                rgb888_to_rgb565(255, 255, 255));
-        
+transition:     
+        initCameraSection2a();
+       
         // second 3D section (3D sage with prisms objects effects)
-        while (!finish3DSection2) {
+        while (!finish3DSection2a) {
           updateKeyboardKeysListener();
-          renderSection2();
+          renderSection2a();
   			}
+        
+        SAGE_FlushEntities();
+        initCameraSection2b();
+        
+  			// second 3D section (3D sage with prisms objects effects)
+        while (!finish3DSection2b) {
+          updateKeyboardKeysListener();
+          renderSection2b();
+  			}
+  			
+  			SAGE_FlushEntities();
+  			             
+        mainFinish = TRUE;
 			}
-			
+exit:			
 			// free memory
 			restore();
 			
@@ -3398,4 +4194,4 @@ void main(int argc, char* argv[]) {
 	SAGE_Exit();
 	// exit message
 	SAGE_AppliLog("Thank you for watching! ^_^");
-}
+ }
