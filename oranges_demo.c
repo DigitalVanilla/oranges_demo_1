@@ -2141,108 +2141,6 @@ SAGE_Vertex Path4[32] = {
   { -0.622803, 0.977539, 0.000000 },
 };
 
-/*
-  SAGE_Vertex Path4[32] = {
-  { -0.716910, 1.000000, 0.000000 },
-  //{ -0.684228, 0.997432, 0.000000 },
-  //{ -0.652882, 0.989873, 0.000000 },
-  { -0.622803, 0.977539, 0.000000 },
-  //{ -0.593923, 0.960648, 0.000000 },
-  //{ -0.566171, 0.939417, 0.000000 },
-  { -0.539479, 0.914062, 0.000000 },
-  //{ -0.513776, 0.884802, 0.000000 },
-  //{ -0.488995, 0.851852, 0.000000 },
-  { -0.465065, 0.815430, 0.000000 },
-  //{ -0.441917, 0.775752, 0.000000 },
-  //{ -0.419483, 0.733037, 0.000000 },
-  { -0.397692, 0.687500, 0.000000 },
-  //{ -0.376476, 0.639359, 0.000000 },
-  //{ -0.355765, 0.588831, 0.000000 },
-  { -0.335490, 0.536133, 0.000000 },
-  //{ -0.315582, 0.481481, 0.000000 },
-  //{ -0.295971, 0.425094, 0.000000 },
-  { -0.276589, 0.367188, 0.000000 },
-  //{ -0.257365, 0.307979, 0.000000 },
-  //{ -0.238231, 0.247685, 0.000000 },
-  { -0.219117, 0.186523, 0.000000 },
-  //{ -0.199954, 0.124711, 0.000000 },
-  //{ -0.180673, 0.062464, 0.000000 },
-  { -0.161205, 0.000000, 0.000000 },
-  //{ -0.141480, -0.062464, 0.000000 },
-  //{ -0.121429, -0.124711, 0.000000 },
-  { -0.100983, -0.186523, 0.000000 },
-  //{ -0.080072, -0.247685, 0.000000 },
-  //{ -0.058627, -0.307979, 0.000000 },
-  { -0.036579, -0.367187, 0.000000 },
-  //{ -0.013859, -0.425094, 0.000000 },
-  //{ 0.009603, -0.481481, 0.000000 },
-  { 0.033875, -0.536133, 0.000000 },
-  //{ 0.059028, -0.588831, 0.000000 },
-  //{ 0.085130, -0.639359, 0.000000 },
-  { 0.112251, -0.687500, 0.000000 },
-  //{ 0.140460, -0.733037, 0.000000 },
-  //{ 0.169826, -0.775752, -0.000000 },
-  { 0.200419, -0.815430, -0.000000 },
-  //{ 0.232308, -0.851852, -0.000000 },
-  //{ 0.265561, -0.884802, -0.000000 },
-  { 0.300249, -0.914062, -0.000000 },
-  //{ 0.336441, -0.939417, -0.000000 },
-  //{ 0.374205, -0.960648, -0.000000 },
-  { 0.413611, -0.977539, -0.000000 },
-  //{ 0.454729, -0.989872, -0.000000 },
-  //{ 0.497628, -0.997432, -0.000000 },
-  { 0.542377, -1.000000, -0.000000 },
-  //{ 0.497628, -0.997432, -0.000000 },
-  //{ 0.454729, -0.989872, -0.000000 },
-  { 0.413611, -0.977539, -0.000000 },
-  //{ 0.374205, -0.960648, -0.000000 },
-  //{ 0.336441, -0.939417, -0.000000 },
-  { 0.300249, -0.914062, -0.000000 },
-  //{ 0.265561, -0.884802, -0.000000 },
-  //{ 0.232308, -0.851852, -0.000000 },
-  { 0.200419, -0.815430, -0.000000 },
-  //{ 0.169826, -0.775752, -0.000000 },
-  //{ 0.140460, -0.733037, 0.000000 },
-  { 0.112251, -0.687500, 0.000000 },
-  //{ 0.085130, -0.639359, 0.000000 },
-  //{ 0.059028, -0.588831, 0.000000 },
-  { 0.033875, -0.536133, 0.000000 },
-  //{ 0.009603, -0.481481, 0.000000 },
-  //{ -0.013859, -0.425094, 0.000000 },
-  { -0.036579, -0.367187, 0.000000 },
-  //{ -0.058627, -0.307979, 0.000000 },
-  //{ -0.080072, -0.247685, 0.000000 },
-  { -0.100983, -0.186523, 0.000000 },
-  //{ -0.121429, -0.124711, 0.000000 },
-  //{ -0.141480, -0.062464, 0.000000 },
-  { -0.161205, 0.000000, 0.000000 },
-  //{ -0.180673, 0.062464, 0.000000 },
-  //{ -0.199954, 0.124711, 0.000000 },
-  { -0.219117, 0.186523, 0.000000 },
-  //{ -0.238231, 0.247685, 0.000000 },
-  //{ -0.257365, 0.307979, 0.000000 },
-  { -0.276589, 0.367188, 0.000000 },
-  //{ -0.295971, 0.425094, 0.000000 },
-  //{ -0.315582, 0.481481, 0.000000 },
-  { -0.335490, 0.536133, 0.000000 },
-  //{ -0.355765, 0.588831, 0.000000 },
-  //{ -0.376476, 0.639359, 0.000000 },
-  { -0.397692, 0.687500, 0.000000 },
-  //{ -0.419483, 0.733037, 0.000000 },
-  //{ -0.441917, 0.775752, 0.000000 },
-  { -0.465065, 0.815430, 0.000000 },
-  //{ -0.488995, 0.851852, 0.000000 },
-  //{ -0.513776, 0.884802, 0.000000 },
-  { -0.539479, 0.914062, 0.000000 },
-  //{ -0.566171, 0.939417, 0.000000 },
-  //{ -0.593923, 0.960648, 0.000000 },
-  { -0.622803, 0.977539, 0.000000 },
-  //{ -0.652882, 0.989873, 0.000000 },
-  //{ -0.684228, 0.997432, 0.000000 },
-  //{ -0.716910, 1.000000, 0.000000 }
-};
-*/
-
 // ******************************************
 // GENERIC HELPERS
 // ******************************************
@@ -3744,8 +3642,7 @@ BOOL LoadObjModel(const char *modelName) {
 				BallIndices[totalTrianglesCount] = indexInternalCount;
 				BallIndices[totalTrianglesCount+1] = indexInternalCount + 1;
 				BallIndices[totalTrianglesCount+2] = indexInternalCount + 2;
-				//BallIndices[totalTrianglesCount+3] = 0xffff;
-				
+
 				indexInternalCount = indexInternalCount + 3;
 				totalTrianglesCount = totalTrianglesCount + 3;
 			}
@@ -3779,16 +3676,12 @@ BOOL LoadObjModel(const char *modelName) {
 				BallIndices[totalTrianglesCount] = indexInternalCount;
 				BallIndices[totalTrianglesCount+1] = indexInternalCount + 1;
 				BallIndices[totalTrianglesCount+2] = indexInternalCount + 2;
-				//BallIndices[totalTrianglesCount+3] = 0xffff;
-				
+
 				indexInternalCount = indexInternalCount + 3;
 				totalTrianglesCount = totalTrianglesCount + 3;
 			}
 		}
 	}
-
-	//printf("total vertexes count= %d\n", totalVertexBufferCount);
-	//printf("total triangles count= %d\n", totalTrianglesCount);
 
 	fclose(objfp);
 
@@ -3889,7 +3782,6 @@ void update3DBalls(void) {
 	for (i = 0; i<totalBalls; i++) {
   	mat4_rotateX(&xRot, ballRotation[i].x);
     mat4_rotateY(&yRot, ballRotation[i].y);
-    //mat4_rotateZ(&zRot, ballRotation[i].z);
     mat4_mul(&ballRotationMatrix[i], &xRot, &yRot);
     
     switch (ballDirection[i]) {
@@ -3906,9 +3798,6 @@ void update3DBalls(void) {
     	break;
   	}
   }
-  
- 	// camera position
- 	//mat4_translate(&viewMatrix, cameraPosition.x, cameraPosition.y, cameraPosition.z);
 }
 
 void updateScrolltext(void) {
@@ -3925,10 +3814,6 @@ void updateScrolltext(void) {
       // this starts the transition to middle section between section 1 and 2
       startTransitionToSection2 = TRUE;
       calledVampireLogoOutro = TRUE;
-      
-      // wrap the message and make the loop
-      //message_pos = 0;
-      //new_char = message[message_pos];
     }
     
     char_load = FONT_WIDTH;
@@ -4034,19 +3919,10 @@ void updateVerticalScrolltext(void) {
     
     char_vertical_posx = 4;
     char_vertical_posy += FONT_HEIGHT;
-    
-    //printf("char_vertical_posy=%d\n", char_vertical_posy);
-    //if (char_vertical_posy > SCREEN_HEIGHT) {
-      //char_vertical_posy = 0;
-    //}
   }
          
-  char_load -= TEXTSCROLL_SPEED/2;
-  layer_vertical_posy += TEXTSCROLL_SPEED/2;
-  
-  //if (layer_vertical_posy >= SCREEN_HEIGHT + FONT_HEIGHT) {
-    //layer_vertical_posy = 0;
-  //}
+  char_load -= TEXTSCROLL_VERTICAL_SPEED;
+  layer_vertical_posy += TEXTSCROLL_VERTICAL_SPEED;
 }
 
 void updateSection1(void) {
@@ -4389,6 +4265,81 @@ void debugSage3D() {
   );
 }
 
+
+void _update(void) {
+  int i=0, x_ = 0, y_ = 0;
+  SAGE_Event * event = NULL;
+  
+  while ((event = SAGE_GetEvent()) != NULL) {
+    // If we click on mouse button, we stop the loop
+    if (event->type == SEVT_MOUSEBT) {
+      mainFinish = TRUE;
+      finish3DSection1 = TRUE;
+      finish3DSection2a = TRUE;
+      finish3DSection2b = TRUE;
+      finish3DSection2c = TRUE;
+      finish3DSection3 = TRUE;
+    }
+    // If we press the ESC key, we stop the loop
+    else if (event->type == SEVT_RAWKEY && event->code == SKEY_EN_ESC) {
+      mainFinish = TRUE;
+      finish3DSection1 = TRUE;
+      finish3DSection2a = TRUE;
+      finish3DSection2b = TRUE;
+      finish3DSection2c = TRUE;
+      finish3DSection3 = TRUE;
+    }
+    
+    if (event->type == SEVT_RAWKEY) {
+      if (event->code == SKEY_EN_W) {
+        zoom += ZOOM_STEP;
+      }
+      else if (event->code == SKEY_EN_S) {
+        zoom -= ZOOM_STEP;
+      }
+  
+      if (event->code == SKEY_EN_UP) {
+        camY += S3DE_ONEDEGREE / 2;
+      }
+      else if (event->code == SKEY_EN_DOWN) {
+        camY -= S3DE_ONEDEGREE / 2;
+      }
+      
+      if (event->code == SKEY_EN_LEFT) {
+        camX -= S3DE_ONEDEGREE / 2;
+      }
+      else if (event->code == SKEY_EN_RIGHT) {
+        camX += S3DE_ONEDEGREE / 4;
+      }
+      
+      if (event->code == SKEY_EN_A) {
+        y_ -= S3DE_ONEDEGREE / 2;
+        camRotY += y_;
+      }
+      else if (event->code == SKEY_EN_D) {
+        y_ += S3DE_ONEDEGREE / 2;
+        camRotY += y_;
+      }
+      
+      if (event->code == SKEY_EN_Z) {
+        x_ -= S3DE_ONEDEGREE;
+        camRotX += x_;
+      }
+      else if (event->code == SKEY_EN_X) {
+        x_ += S3DE_ONEDEGREE;
+        camRotX += x_;
+      }
+    }
+  }
+  
+  SAGE_SetCameraPosition(MAIN_CAMERA, camX, camY, zoom);
+  SAGE_RotateCamera(MAIN_CAMERA, x_, y_, 0);
+}
+
+// ******************************************
+// Subsection 2a
+// ******************************************
+
 void addEntity() {
   int p, count, i;
   RgbFColor* rgbF = NULL;
@@ -4473,6 +4424,10 @@ void removeEntity() {
     }
   }
 }
+
+// ******************************************
+// Subsection 2b
+// ******************************************
 
 void addEntity2() {
   int p, count;
@@ -4602,7 +4557,7 @@ void addEntity2() {
     }
     
     vblPart2Count += count;
-    //printf("%d\n", vblPart2Count);
+
     // end this part after around 30seconds = 30vbl per second
     if (vblPart2Count >= 1600) {
       canCreateEntitiesPart2 = FALSE;
@@ -4667,6 +4622,10 @@ void removeEntity2() {
     }
   }
 }
+
+// ******************************************
+// Subsection 2c
+// ******************************************
 
 void addEntity3() {
   int p, count;
@@ -4860,11 +4819,13 @@ void updatePrismLocation4() {
   }
 }
 
+// ******************************************
+// 2nd section 3d engine+subsections cameras inits
+// ******************************************
+
 void initSage3DWorld() {
   RgbFColor* rgbF = NULL;
   RgbIColor* rgbI = NULL;
-  
-  SAGE_EnableFrameCount(TRUE);
   
   SAGE_Init3DEngine();
   
@@ -4963,76 +4924,6 @@ void initCameraSection3() {
   SAGE_SetCameraPosition(MAIN_CAMERA, camX, camY, zoom);
 }
 
-void _update(void) {
-  int i=0, x_ = 0, y_ = 0;
-  SAGE_Event * event = NULL;
-  
-  while ((event = SAGE_GetEvent()) != NULL) {
-    // If we click on mouse button, we stop the loop
-  	if (event->type == SEVT_MOUSEBT) {
-   		mainFinish = TRUE;
-   		finish3DSection1 = TRUE;
-   		finish3DSection2a = TRUE;
-   		finish3DSection2b = TRUE;
-   		finish3DSection2c = TRUE;
-   		finish3DSection3 = TRUE;
-  	}
-  	// If we press the ESC key, we stop the loop
-		else if (event->type == SEVT_RAWKEY && event->code == SKEY_EN_ESC) {
-   		mainFinish = TRUE;
-   		finish3DSection1 = TRUE;
-   		finish3DSection2a = TRUE;
-   		finish3DSection2b = TRUE;
-   		finish3DSection2c = TRUE;
-   		finish3DSection3 = TRUE;
-   	}
-   	
-    if (event->type == SEVT_RAWKEY) {
-      if (event->code == SKEY_EN_W) {
-        zoom += ZOOM_STEP;
-      }
-      else if (event->code == SKEY_EN_S) {
-        zoom -= ZOOM_STEP;
-      }
-  
-      if (event->code == SKEY_EN_UP) {
-        camY += S3DE_ONEDEGREE / 2;
-      }
-      else if (event->code == SKEY_EN_DOWN) {
-        camY -= S3DE_ONEDEGREE / 2;
-      }
-      
-      if (event->code == SKEY_EN_LEFT) {
-        camX -= S3DE_ONEDEGREE / 2;
-      }
-      else if (event->code == SKEY_EN_RIGHT) {
-        camX += S3DE_ONEDEGREE / 4;
-      }
-      
-      if (event->code == SKEY_EN_A) {
-        y_ -= S3DE_ONEDEGREE / 2;
-        camRotY += y_;
-      }
-      else if (event->code == SKEY_EN_D) {
-        y_ += S3DE_ONEDEGREE / 2;
-        camRotY += y_;
-      }
-      
-      if (event->code == SKEY_EN_Z) {
-        x_ -= S3DE_ONEDEGREE;
-        camRotX += x_;
-      }
-      else if (event->code == SKEY_EN_X) {
-        x_ += S3DE_ONEDEGREE;
-        camRotX += x_;
-      }
-    }
-  }
-  
-  SAGE_SetCameraPosition(MAIN_CAMERA, camX, camY, zoom);
-  SAGE_RotateCamera(MAIN_CAMERA, x_, y_, 0);
-}
-
 void renderSection2a(void) {
   clearLayerBitmap(SAGE_3D_LAYER, rgb888_to_rgb565(255, 255, 255));
   
@@ -5075,6 +4966,7 @@ void renderSection2c(void) {
 // ******************************************
 // 3rd Section
 // ******************************************
+
 void initSection3(void) {
   int c, r, p, i=0;
   RgbFColor* rgbF = NULL;
@@ -5138,7 +5030,6 @@ void renderSection3(void) {
   
   updateVerticalScrolltext();
   
-  // Set the text layer view (using the wrapping feature of layers to simulate infinite scroll)
   SAGE_SetLayerView(TEXTFIELD_VERTICAL_LAYER, 0, layer_vertical_posy, SCREEN_WIDTH, SCREEN_HEIGHT);
   SAGE_SetLayerTransparency(TEXTFIELD_VERTICAL_LAYER, GLOBAL_BLACK_TRANSPARENCY);
   // Blit the text layer to the screen
@@ -5205,8 +5096,6 @@ void main(int argc, char* argv[]) {
   for (i=0; i<totalBalls; i++) {
     rand = randomFloatArray[i];
     
-    //ballXPosition[i] = rand * 5.0;
-
     if (i % 2 == 0) {
       ballXPosition[i] = startXPosition;
       ballDirection[i] = towardLeft;
@@ -5231,26 +5120,6 @@ void main(int argc, char* argv[]) {
     return FALSE;
   }
   
-	/*
-	// nor model nor texture
-	if (argc == 1) {
-		printf("no arguments for 3D object and texture, using default 'assets/cube.obj' 'assets/uv_grid_checker_1.dds'\n");
-		filename_object = "assets/cube.obj";
-		filename_texture = "assets/uv_grid_checker.dds";
-	}
-
-	// just the model
-	if (argc == 2) {
-		filename_object = argv[1];
-		filename_texture = "assets/uv_grid_checker.dds";
-	}
-	
-	// model and the texture
-	if (argc == 3) {
-		filename_object = argv[1];
-		filename_texture = argv[2];
-	}
-	*/
 	filename_object = "assets/crystal.obj";
 	filename_texture = "assets/ball_uv_map_64x64.dds";
 	    
@@ -5300,13 +5169,12 @@ void main(int argc, char* argv[]) {
       SAGE_SetTextColor(0,255);
   	 	SAGE_SetDrawingMode(SSCR_TXTTRANSP);
   	 	
+      SAGE_MaximumFPS(30);
+      // setting to TRUE will set the fps to 60 and mutually negate MaximumFPS()
+      SAGE_VerticalSynchro(FALSE);
+
   		// fps counter
-      if (SAGE_EnableFrameCount(TRUE)) {
-        SAGE_MaximumFPS(30);
-        // setting to TRUE will set the fps to 60 and mutually negate MaximumFPS()
-       	SAGE_VerticalSynchro(FALSE);
-      }
-      else {
+      if (!SAGE_EnableFrameCount(TRUE)) {
         SAGE_ErrorLog("Can't activate frame rate counter !\n");
       }
 			
@@ -5453,7 +5321,7 @@ void main(int argc, char* argv[]) {
                                SCREEN_HEIGHT/32,
                                SCREEN_WIDTH/32,
                                rgb888_to_rgb565(255, 255, 255));
-transition:     
+     
         initCameraSection2a();
         SAGE_ResetVblCount();
         // second 3D section (3D sage with prisms objects effects)
@@ -5479,7 +5347,7 @@ transition:
           updateKeyboardKeysListener();
           renderSection2c();
   			}
-  			
+transition:  			
   			// third and final section
   			SAGE_FlushEntities();
   			initCameraSection3();
