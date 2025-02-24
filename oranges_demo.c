@@ -5,6 +5,7 @@
 
   . swap chess floor with a 3d plane with chess texture movement in X only with slowdown near the end
     in both left/right sides
+  . add fake shadow as sprite on each bouncing ball locked to x position on each ball
 */
  
 #include <stdio.h>
@@ -121,7 +122,7 @@
 // FONT
 
 #define FONT_FILENAME			          "assets/font_16x20.png"
-#define FONT_INVERTED_FILENAME		  "assets/font_inverted_16x20.png"
+#define FONT_INVERTED_FILENAME		  "assets/font_masked_16x20.png"
 #define FONT_WIDTH                  16
 #define FONT_HEIGHT                 20
 #define FONT_NUM                    60
@@ -132,7 +133,7 @@
 #define TEXTFIELD_HEIGHT            FONT_HEIGHT
 #define TEXTFIELD_LAYER             9
 
-#define TEXTFIELD_VERTICAL_WIDTH    SCREEN_WIDTH
+#define TEXTFIELD_VERTICAL_WIDTH    232
 #define TEXTFIELD_VERTICAL_HEIGHT   SCREEN_HEIGHT*20
 #define TEXTFIELD_VERTICAL_LAYER    10
 
@@ -141,12 +142,17 @@
 
 // TRANSITION Layer 1st > 2nd 3D section
 
-#define	TRANSITION_LAYER		  11
+#define	TRANSITION_LAYER		        11
+
+#define	TRANSITION_END_LAYER		    12
+#define TRANSITION_END_WIDTH        SCREEN_WIDTH+(SCREEN_WIDTH-TEXTFIELD_VERTICAL_WIDTH)
+#define TRANSITION_END_HEIGHT       SCREEN_HEIGHT
 
 // TEXT MESSAGE
 
 #define M_PI                  3.14159265358979323846
 #define MESSAGE_FILENAME			"assets/message.txt"
+#define MESSAGE_END_FILENAME	"assets/message_end.txt"
 #define RAD(x)                ((x)*PI/180.0)
 #define CURVE_SCROLL          112 // smaller numbers create faster movement
 FLOAT curve[CURVE_SCROLL];
@@ -183,6 +189,8 @@ BOOL finish3DSection2a = FALSE;
 BOOL finish3DSection2b = FALSE;
 BOOL finish3DSection2c = FALSE;
 
+BOOL finish3DFinalTransition = FALSE;
+
 BOOL finish3DSection3 = FALSE;
 
 BOOL startTransitionToSection2 = FALSE;
@@ -196,10 +204,10 @@ BOOL canCreateEntitiesPart3 = TRUE;
 
 SAGE_Picture *atlas_picture, *oranges_logo_picture, *grid_chess_picture, *font_picture, *font_inverted_picture;
 
-STRPTR message = NULL;
-UWORD message_pos = 0, font_posx[FONT_NUM], font_posy[FONT_NUM];
+STRPTR message = NULL, message_end = NULL;
+UWORD message_pos = 0, message_vertical_pos = 0, font_posx[FONT_NUM], font_posy[FONT_NUM];
 UWORD char_posx = SCREEN_WIDTH, char_vertical_posx = 4, char_vertical_posy = SCREEN_HEIGHT+FONT_HEIGHT, char_load = 0;
-UWORD layer_posx = SCREEN_WIDTH+FONT_WIDTH, layer_posy = 0, scroll_posy = 0, layer_vertical_posy = 0;
+UWORD layer_posx = SCREEN_WIDTH+FONT_WIDTH, layer_posy = 0, scroll_posy = 0, layer_vertical_posy = 0, final_layer_x_position = 0;
 
 // ******************************************
 // Sage 3D related section 3
@@ -2208,6 +2216,20 @@ void fillAreaLayer(int index, int x, int y, int width, int height, int color) {
   }
 }
 
+void fillAreaLayerOverscan(int index, int layer_width, int x, int y, int width, int height, int color) {
+  SAGE_Bitmap *bitmap = SAGE_GetLayerBitmap(index);
+  short *buffer = bitmap->bitmap_buffer;
+  int i, j, current_x, current_y;
+
+  for (i=0; i<width; i++) {
+    for (j=0; j<height; j++) {
+      current_x = x + i;
+      current_y = y + j;
+      buffer[(layer_width * current_y) + current_x] = (short)color;
+    }
+  }
+}
+
 // ******************************************
 // CLEAR areas
 // ******************************************
@@ -2643,12 +2665,16 @@ BOOL createAllLayers(void) {
     return FALSE;
   }
   
+  if (!SAGE_CreateLayer(TRANSITION_END_LAYER, TRANSITION_END_WIDTH, TRANSITION_END_HEIGHT)) {
+    return FALSE;
+  }
+  
   if (!SAGE_CreateLayer(TEXTFIELD_LAYER, TEXTFIELD_WIDTH, TEXTFIELD_HEIGHT)) {
     return FALSE;
   }
   
   if (!SAGE_CreateLayer(TEXTFIELD_VERTICAL_LAYER, TEXTFIELD_VERTICAL_WIDTH, TEXTFIELD_VERTICAL_HEIGHT)) {
-    clearLayerBitmap(TEXTFIELD_VERTICAL_LAYER, rgb888_to_rgb565(255, 255, 255));
+    //clearLayerBitmap(TEXTFIELD_VERTICAL_LAYER, rgb888_to_rgb565(255, 255, 255));
     return FALSE;
   }
   
@@ -2663,7 +2689,7 @@ BOOL createAllLayers(void) {
 void releaseAllLayers(void) {
   int i;
   
-  for (i=0; i<12; i++) {
+  for (i=0; i<13; i++) {
     SAGE_ReleaseLayer(i);
   }
 }
@@ -2791,7 +2817,7 @@ BOOL loadFont(void) {
 
 	font_picture = SAGE_LoadPicture(FONT_FILENAME);
 	font_inverted_picture = SAGE_LoadPicture(FONT_INVERTED_FILENAME);
-	SAGE_SetPictureTransparency(font_inverted_picture, GLOBAL_WHITE_TRANSPARENCY);
+	//SAGE_SetPictureTransparency(font_inverted_picture, GLOBAL_WHITE_TRANSPARENCY);
 	
   if (font_picture != NULL) {
     idx = 0;
@@ -2816,26 +2842,44 @@ BOOL loadFont(void) {
 
 // TEXT MESSAGE
 
-BOOL loadMessage(void) {
+void loadMessage(void) {
   BPTR fdesc;
   LONG bytes_read;
 
   fdesc = Open(MESSAGE_FILENAME, MODE_OLDFILE);
+  
   if (fdesc) {
-    // Get the file size
     bytes_read = Seek(fdesc, 0, OFFSET_END);
     bytes_read = Seek(fdesc, 0, OFFSET_BEGINNING);
     message = (STRPTR) SAGE_AllocMem(bytes_read + 2);
     if (message != NULL) {
       if (Read(fdesc, message, bytes_read) == bytes_read) {
         Close(fdesc);
-        return TRUE;
+        return;
       }
     }
     Close(fdesc);
   }
-  SAGE_DisplayError();
-  return FALSE;
+}
+
+void loadMessageEnd(void) {
+  BPTR fdesc;
+  LONG bytes_read;
+
+  fdesc = Open(MESSAGE_END_FILENAME, MODE_OLDFILE);
+  
+  if (fdesc) {
+    bytes_read = Seek(fdesc, 0, OFFSET_END);
+    bytes_read = Seek(fdesc, 0, OFFSET_BEGINNING);
+    message_end = (STRPTR) SAGE_AllocMem(bytes_read + 2);
+    if (message_end != NULL) {
+      if (Read(fdesc, message_end, bytes_read) == bytes_read) {
+        Close(fdesc);
+        return;
+      }
+    }
+    Close(fdesc);
+  }
 }
 
 // ******************************************
@@ -3756,6 +3800,7 @@ void updateKeyboardKeysListener(void) {
    		finish3DSection2a = TRUE;
    		finish3DSection2b = TRUE;
    		finish3DSection2c = TRUE;
+   		finish3DFinalTransition = TRUE;
    		finish3DSection3 = TRUE;
   	}
   	// If we press the ESC key, we stop the loop
@@ -3765,6 +3810,7 @@ void updateKeyboardKeysListener(void) {
    		finish3DSection2a = TRUE;
    		finish3DSection2b = TRUE;
    		finish3DSection2c = TRUE;
+   		finish3DFinalTransition = TRUE;
    		finish3DSection3 = TRUE;
    	}
   }
@@ -3874,22 +3920,21 @@ void updateVerticalScrolltext(void) {
     char_load = FONT_HEIGHT;
     
     for (i=0; i<14; i++) {
-      new_char = message[message_pos];
+      new_char = message_end[message_vertical_pos];
       
+      if (new_char == '|') {
+        message_vertical_pos+=2; 
+        break;
+      }
+           
       // have we reach the end of the message?
-      // let's call it a close for section1 and move to the next section
       if (new_char == 0) {
-        // this starts the transition to middle section between section 1 and 2
-        //startTransitionToSection2 = TRUE;
-        //calledVampireLogoOutro = TRUE;
-        
-        // wrap the message and make the loop
-        message_pos = 0;
-        new_char = message[message_pos];
+        finish3DSection3 = TRUE;
+        return;
       }
       
       // next char
-      message_pos++;          
+      message_vertical_pos++;          
       
       if (new_char < ' ') {
         char_index = 0;
@@ -3905,7 +3950,7 @@ void updateVerticalScrolltext(void) {
       
       // blit the char to the layer
       SAGE_BlitPictureToLayer(
-      	font_inverted_picture,
+      	font_picture,//font_inverted_picture,
        	font_posx[char_index],
        	font_posy[char_index],
        	FONT_WIDTH,
@@ -3918,7 +3963,7 @@ void updateVerticalScrolltext(void) {
     }
     
     char_vertical_posx = 4;
-    char_vertical_posy += FONT_HEIGHT;
+    char_vertical_posy += FONT_HEIGHT + 2;
   }
          
   char_load -= TEXTSCROLL_VERTICAL_SPEED;
@@ -3926,7 +3971,6 @@ void updateVerticalScrolltext(void) {
 }
 
 void updateSection1(void) {
-  //updateKeyboardKeysListener();
   update3DBalls();
   
   if (!startTransitionToSection2) {
@@ -4264,7 +4308,6 @@ void debugSage3D() {
     camRotX, camRotY
   );
 }
-
 
 void _update(void) {
   int i=0, x_ = 0, y_ = 0;
@@ -4797,28 +4840,6 @@ void removeEntity3() {
   }
 }
 
-void updatePrismLocation4() {
-  int i;
-  Sage_Entity_Container container;
- 
-  for (i=0; i<100; i++) {
-    container = entitiesAnimation[i];
-    
-    SAGE_SetEntityPosition(container.entityIndex, 
-                           container.entity->posx,
-                           Path4[container.animationIndexPosition].y,
-                           container.entity->posz);
-                    
-    container.animationIndexPosition += 1;
-  
-    if (container.animationIndexPosition > 31) {
-      container.animationIndexPosition = 0;
-    } 
-     
-    entitiesAnimation[i] = container;
-  }
-}
-
 // ******************************************
 // 2nd section 3d engine+subsections cameras inits
 // ******************************************
@@ -4964,6 +4985,34 @@ void renderSection2c(void) {
 }
 
 // ******************************************
+// Transition between 2nd and 3rd Section
+// ******************************************
+
+void initFinalTransition() {
+    fillAreaLayerOverscan(
+    TRANSITION_END_LAYER,
+    TRANSITION_END_WIDTH,
+    SCREEN_WIDTH,
+    0,
+    SCREEN_WIDTH-TEXTFIELD_VERTICAL_WIDTH,
+    SCREEN_HEIGHT,
+    rgb888_to_rgb565(255, 255, 255)
+  );
+}
+
+void renderFinalTransition() {
+  final_layer_x_position += TEXTSCROLL_SPEED * 2;
+  
+  SAGE_SetLayerView(TRANSITION_END_LAYER, final_layer_x_position, 0, SCREEN_WIDTH, TRANSITION_END_HEIGHT);
+  SAGE_BlitLayerToScreen(TRANSITION_END_LAYER, 0, 0);
+  SAGE_RefreshScreen();
+  
+  if (final_layer_x_position >= SCREEN_WIDTH-TRANSITION_END_WIDTH) {
+    finish3DFinalTransition = TRUE;
+  }
+}
+
+// ******************************************
 // 3rd Section
 // ******************************************
 
@@ -4996,7 +5045,7 @@ void initSection3(void) {
       }
     
       SAGE_AddEntity(indexEntity6, onFlyEntity);
-      SAGE_SetEntityPosition(indexEntity6, 0+(r*2.1), Path4[indexEntity6].y, 0+(c*2.1));
+      SAGE_SetEntityPosition(indexEntity6, 0.0f+(r*2.0f), Path4[indexEntity6].y, 0.0f+(c*2.0f));
       SAGE_RotateEntity(indexEntity6,
                         0,
                         S3DE_ONEDEGREE * 180,
@@ -5020,6 +5069,28 @@ void initSection3(void) {
   }
 }
 
+void updatePrismLocation4() {
+  int i;
+  Sage_Entity_Container container;
+ 
+  for (i=0; i<100; i++) {
+    container = entitiesAnimation[i];
+    
+    SAGE_SetEntityPosition(container.entityIndex, 
+                           container.entity->posx,
+                           Path4[container.animationIndexPosition].y,
+                           container.entity->posz);
+                    
+    container.animationIndexPosition += 1;
+  
+    if (container.animationIndexPosition > 31) {
+      container.animationIndexPosition = 0;
+    } 
+     
+    entitiesAnimation[i] = container;
+  }
+}
+
 void renderSection3(void) {
   clearLayerBitmap(SAGE_3D_LAYER, rgb888_to_rgb565(255, 255, 255));
   SAGE_BlitLayerToScreen(SAGE_3D_LAYER, 0, 0);
@@ -5030,8 +5101,8 @@ void renderSection3(void) {
   
   updateVerticalScrolltext();
   
-  SAGE_SetLayerView(TEXTFIELD_VERTICAL_LAYER, 0, layer_vertical_posy, SCREEN_WIDTH, SCREEN_HEIGHT);
-  SAGE_SetLayerTransparency(TEXTFIELD_VERTICAL_LAYER, GLOBAL_BLACK_TRANSPARENCY);
+  SAGE_SetLayerView(TEXTFIELD_VERTICAL_LAYER, 0, layer_vertical_posy, TEXTFIELD_VERTICAL_WIDTH, SCREEN_HEIGHT);
+  SAGE_SetLayerTransparency(TEXTFIELD_VERTICAL_LAYER, GLOBAL_WHITE_TRANSPARENCY);
   // Blit the text layer to the screen
   SAGE_BlitLayerToScreen(TEXTFIELD_VERTICAL_LAYER, 0, 0);
 
@@ -5174,9 +5245,9 @@ void main(int argc, char* argv[]) {
       SAGE_VerticalSynchro(FALSE);
 
   		// fps counter
-      if (!SAGE_EnableFrameCount(TRUE)) {
-        SAGE_ErrorLog("Can't activate frame rate counter !\n");
-      }
+      //if (!SAGE_EnableFrameCount(TRUE)) {
+        //SAGE_ErrorLog("Can't activate frame rate counter !\n");
+      //}
 			
 			loadAtlas();
 				
@@ -5189,6 +5260,7 @@ void main(int argc, char* argv[]) {
   		loadGridChess();
   		loadFont();
   		loadMessage();
+  		loadMessageEnd();
   		initSage3DWorld();
   		
   		SAGE_Pause(100);
@@ -5338,7 +5410,7 @@ void main(int argc, char* argv[]) {
           updateKeyboardKeysListener();
           renderSection2b();
   			}
-  			
+ 			
   			SAGE_FlushEntities();
   			initCameraSection2c();
   			    
@@ -5353,6 +5425,24 @@ transition:
   			initCameraSection3();
   			initSection3();
   			
+  			transitionTo3DSection2(32,
+                               32,
+                               SCREEN_HEIGHT/32,
+                               SCREEN_WIDTH/32,
+                               rgb888_to_rgb565(0, 0, 0));
+       
+        SAGE_Pause(50);
+        
+        initFinalTransition();
+        while (!finish3DFinalTransition) {
+          updateKeyboardKeysListener();
+          renderFinalTransition();
+        }
+        
+        SAGE_ReleaseLayer(TRANSITION_END_LAYER);
+        
+        SAGE_Pause(50);
+                    
   			// third 3D section (3D sage with prisms objects effects)
         while (!finish3DSection3) {
           updateKeyboardKeysListener();
@@ -5361,7 +5451,7 @@ transition:
   			
         mainFinish = TRUE;
 			}
-//exit:			
+		
 			// free memory
 			restore();
 			
