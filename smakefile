@@ -1,0 +1,2 @@
+main: demo.c
+   sc LINK demo.c debug=symbol CPU=68060 MATH=68882 DATA=far CODE=far IDIR=libinclude: sage:lib/sage.lib NOICONS IGNORE=all
