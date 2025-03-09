@@ -1,4 +1,4 @@
-// sc LINK oranges_demo.c CPU=68060 MATH=68882 DATA=far CODE=far IDIR=libinclude: sage:lib/sage_debug.lib NOICONS
+// sc LINK oranges_demo.c CPU=68060 MATH=68882 DATA=far CODE=far IDIR=libinclude: sage:lib/sage.lib NOICONS
 
 /*
  TODO
@@ -9,15 +9,7 @@
 */
  
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
-#include <math.h>
-#include <time.h>
-#include <sys/time.h>
-#include <dos/dos.h>
-#include <clib/dos_protos.h>
-#include <string.h>
-#include <unistd.h>
 
 #include <sage/sage.h>
 
@@ -210,7 +202,7 @@ UWORD char_posx = SCREEN_WIDTH, char_vertical_posx = 4, char_vertical_posy = SCR
 UWORD layer_posx = SCREEN_WIDTH+FONT_WIDTH, layer_posy = 0, scroll_posy = 0, layer_vertical_posy = 0, final_layer_x_position = 0;
 
 // ******************************************
-// Sage 3D related section 3
+// 3D related section 3
 // ******************************************
 
 #define SAGE_3D_LAYER   11
@@ -2506,9 +2498,6 @@ static float hue_to_rgb(float p, float q, float t) {
   if (t<0.0) t += 1.0f;
   if (t>1.0) t -= 1.0f;
   
-  //if (t * 6.0 < 1.0) return p + (q - p) * 6 * t;
-  //if (t * 2.0 < 1.0) return q;
-  //if (t * 3.0 < 2.0) return p + (q - p) * ((2.0 / 3) - t);
   if (t<1.0 / 6.0f) return p+(q-p)*6.0f*t;
   if (t<1.0 / 2.0f) return q;
   if (t<2.0 / 3.0f) return p+(q-p)*(2.0f/3.0f-t)*6.0f;
@@ -2522,19 +2511,6 @@ void hsl_to_rgb(float h, float s, float l, float *r, float *g, float *b) {
     *r = *g = *b = l;
     return;
   }
-  
-  /*if (l < 0.5) {
-    q = l * (1.0 + s);
-  }
-  else {
-    q = (l + s) - (s * l);
-  }
-  
-  p = 2.0 * l - q;
-  
-  *r = hue_to_rgb(p, q, h+(1.0f/3.0));
-  *g = hue_to_rgb(p, q, h);
-  *b = hue_to_rgb(p, q, h-(1.0f/3.0));*/
   
   q = (l<0.5f) ? (l*(1.0f+s)) : (l+s-l*s);
   p = 2.0f*l-q;
@@ -2674,7 +2650,6 @@ BOOL createAllLayers(void) {
   }
   
   if (!SAGE_CreateLayer(TEXTFIELD_VERTICAL_LAYER, TEXTFIELD_VERTICAL_WIDTH, TEXTFIELD_VERTICAL_HEIGHT)) {
-    //clearLayerBitmap(TEXTFIELD_VERTICAL_LAYER, rgb888_to_rgb565(255, 255, 255));
     return FALSE;
   }
   
@@ -2817,8 +2792,7 @@ BOOL loadFont(void) {
 
 	font_picture = SAGE_LoadPicture(FONT_FILENAME);
 	font_inverted_picture = SAGE_LoadPicture(FONT_INVERTED_FILENAME);
-	//SAGE_SetPictureTransparency(font_inverted_picture, GLOBAL_WHITE_TRANSPARENCY);
-	
+
   if (font_picture != NULL) {
     idx = 0;
     y = 0;
@@ -2963,7 +2937,6 @@ void atlasBlitGridChess(void) {
 	 	SAGE_GetBackBitmap(),
 	 	0,
 	 	142);
-	//SAGE_BlitLayerToScreen(MAIN_LAYER, 0, 0);
 }
 
 // ******************************************
@@ -4120,9 +4093,9 @@ void renderSection1(void) {
       // change the position of XYZ
       // increment the position in Y to simulate the balls falling
       mat4_translate(&transMatrix,
-                    ballXPosition[i],
-                    floorY + (ballYFallingPosition[ballYPositionShift[i]] * 1.4),
-                    startZ);
+                     ballXPosition[i],
+                     floorY + (ballYFallingPosition[ballYPositionShift[i]] * 1.4),
+                     startZ);
                
       // shift of N position of the Y position array in order to have a wave effect where all the balls are
   		// shifted in Y position to not look boring
@@ -4175,7 +4148,7 @@ void renderSection1(void) {
   	switch (ballDirection[i]) {
     	
     	case towardRight:
-      	ballXPosition[i] += 0.08;//randomFloatArray[i];
+      	ballXPosition[i] += 0.08;
       	
       	// switch direction if we hit the right boundary
       	if (ballXPosition[i] > rightXBoundary) {
@@ -4184,7 +4157,7 @@ void renderSection1(void) {
     	break;
     	
     	case towardLeft:
-      	ballXPosition[i] -= 0.08;//randomFloatArray[i];
+      	ballXPosition[i] -= 0.08;
       	
       	// switch direction if we hit the left boundary
       	if (ballXPosition[i] < leftXBoundary) {
@@ -4199,8 +4172,6 @@ void renderSection1(void) {
 	// <-- Maggie end block
   magEndScene();
   
- 	//visualDebug();
- 	
   // Switch screen buffers
   SAGE_RefreshScreen();
 }
@@ -5045,7 +5016,7 @@ void initSection3(void) {
       }
     
       SAGE_AddEntity(indexEntity6, onFlyEntity);
-      SAGE_SetEntityPosition(indexEntity6, 0.0f+(r*2.0f), Path4[indexEntity6].y, 0.0f+(c*2.0f));
+      SAGE_SetEntityPosition(indexEntity6, 0.0f+(r*2.01f), Path4[indexEntity6].y, 0.0f+(c*2.01f));
       SAGE_RotateEntity(indexEntity6,
                         0,
                         S3DE_ONEDEGREE * 180,
@@ -5268,9 +5239,6 @@ void main(int argc, char* argv[]) {
   		// start playing the music
   		SAGE_PlayMusic(MUSIC_SLOT);
 
-			// intro pre-sections
-			//goto transition;
-			
 			transitionToOrangesLogo(32,
                                32,
                                SCREEN_HEIGHT/32,
@@ -5419,7 +5387,7 @@ void main(int argc, char* argv[]) {
           updateKeyboardKeysListener();
           renderSection2c();
   			}
-transition:  			
+
   			// third and final section
   			SAGE_FlushEntities();
   			initCameraSection3();
@@ -5469,4 +5437,4 @@ transition:
 	SAGE_Exit();
 	// exit message
 	SAGE_AppliLog("Thank you for watching! ^_^");
- }
+}
