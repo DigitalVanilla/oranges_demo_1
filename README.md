@@ -14,11 +14,10 @@ Some extra notes:
 
 . Code is not optimized and messy, t'was my first experience in C, but It was a nice adventure ^_^
 
+To watch the demo: https://youtu.be/eq0lDpAqipI
 
 Credits:
 
 CODE> LYNX
-
 TRACK> OK3ANOS
-
 GFX> LYNX
